@@ -1,0 +1,139 @@
+{
+    "name": "oclite-vscode",
+    "displayName": "OCLite Copilot Extension",
+    "description": "Generate game assets and icons directly in VS Code using OCLite AI.",
+    "version": "0.0.1",
+    "publisher": "oclite",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/oclite/oclite-vscode.git"
+    },
+    "engines": {
+        "vscode": "^1.90.0"
+    },
+    "categories": [
+        "AI",
+        "Chat"
+    ],
+    "icon": "assets/icon.png",
+    "activationEvents": [
+        "onChatParticipant:oclite.chat",
+        "onView:oclite.sidebarView",
+        "onView:oclite.chatView"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "chatParticipants": [
+            {
+                "id": "oclite.chat",
+                "name": "oclite",
+                "fullName": "OCLite Asset Generator",
+                "description": "Generate creative assets using OCLite AI backend.",
+                "isSticky": true
+            }
+        ],
+        "commands": [
+            {
+                "command": "oclite.setApiKey",
+                "title": "OCLite: Set API Key"
+            },
+            {
+                "command": "oclite.saveImage",
+                "title": "OCLite: Save Image to Workspace",
+                "icon": "$(save)"
+            },
+            {
+                "command": "oclite.saveImageFromUrl",
+                "title": "OCLite: Save Image from URL",
+                "icon": "$(cloud-download)"
+            },
+            {
+                "command": "oclite.previewImage",
+                "title": "OCLite: Preview Generated Image",
+                "icon": "$(eye)"
+            },
+            {
+                "command": "oclite.setChatKey",
+                "title": "OCLite: Set Chat Key (Azure Function)"
+            },
+            {
+                "command": "oclite.clearApiKey",
+                "title": "OCLite: Clear All API Keys"
+            }
+        ],
+        "configuration": {
+            "title": "OCLite",
+            "properties": {
+                "oclite.apiKey": {
+                    "type": "string",
+                    "description": "Your API Key from https://oclite.site/playground",
+                    "scope": "application"
+                },
+                "oclite.model": {
+                    "type": "string",
+                    "default": "sdxl-lightning",
+                    "enum": [
+                        "sdxl-lightning",
+                        "flux-schnell",
+                        "flux-dev",
+                        "animagine-xl",
+                        "realistic-vision"
+                    ],
+                    "enumDescriptions": [
+                        "Fastest generation (Default)",
+                        "High quality fast",
+                        "High quality standard",
+                        "Anime style specialized",
+                        "Photorealistic style"
+                    ],
+                    "description": "Select the AI model for image generation."
+                }
+            }
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "oclite-sidebar",
+                    "title": "OCLite",
+                    "icon": "assets/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "oclite-sidebar": [
+                {
+                    "type": "webview",
+                    "id": "oclite.sidebarView",
+                    "name": "OCLite Generator",
+                    "icon": "assets/icon.svg"
+                },
+                {
+                    "type": "webview",
+                    "id": "oclite.chatView",
+                    "name": "Chat with OCLite",
+                    "icon": "assets/icon.svg"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.90.0",
+        "@types/node": "20.x",
+        "@typescript-eslint/eslint-plugin": "^7.0.0",
+        "@typescript-eslint/parser": "^7.0.0",
+        "eslint": "^8.56.0",
+        "typescript": "^5.3.0"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "@vscode/webview-ui-toolkit": "^1.4.0"
+    }
+}

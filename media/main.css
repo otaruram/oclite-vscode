@@ -1,0 +1,318 @@
+/* OCLite VS Code Extension Styles - Native Professional Look */
+
+:root {
+    --oclite-primary: #007acc;
+    --oclite-success: #4caf50;
+    --oclite-warning: #ff9800;
+    --oclite-error: #f44336;
+    --oclite-border-radius: 4px;
+    --oclite-transition: 0.2s ease;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--vscode-sideBar-background);
+}
+
+.container {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Project Detection Banner */
+.project-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--vscode-inputValidation-infoBackground);
+    border: 1px solid var(--vscode-inputValidation-infoBorder);
+    border-radius: var(--oclite-border-radius);
+    font-size: 12px;
+}
+
+.project-banner.hidden {
+    display: none;
+}
+
+/* Input Section */
+.input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-group label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vscode-descriptionForeground);
+}
+
+vscode-text-area,
+vscode-text-field,
+vscode-dropdown {
+    width: 100%;
+}
+
+vscode-text-area::part(control) {
+    min-height: 70px;
+}
+
+/* Status Section */
+.status-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+#status-text {
+    flex: 1;
+}
+
+/* Step Progress Indicator */
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+}
+
+.step-indicator.hidden {
+    display: none;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.step-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    transition: var(--oclite-transition);
+}
+
+.step.active .step-circle {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    animation: pulse 1.5s infinite;
+}
+
+.step.completed .step-circle {
+    background: var(--oclite-success);
+    color: white;
+}
+
+.step span {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.step.active span,
+.step.completed span {
+    color: var(--vscode-foreground);
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: var(--vscode-button-secondaryBackground);
+    margin: 0 4px;
+    margin-bottom: 16px;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Refined Prompt Area */
+.refined-prompt-area {
+    padding: 10px;
+    background: var(--vscode-textBlockQuote-background);
+    border-left: 3px solid var(--vscode-textLink-foreground);
+    border-radius: var(--oclite-border-radius);
+    font-size: 12px;
+}
+
+.refined-prompt-area.hidden {
+    display: none;
+}
+
+.refined-prompt-area label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--vscode-textLink-foreground);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.refined-prompt-area p {
+    margin: 0;
+    font-style: italic;
+    color: var(--vscode-foreground);
+    opacity: 0.9;
+}
+
+/* Result Section */
+.result-area {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeIn 0.3s ease;
+}
+
+.result-area.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.image-container {
+    position: relative;
+    border-radius: var(--oclite-border-radius);
+    overflow: hidden;
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-widget-border);
+}
+
+.image-preview {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.image-container:hover .image-preview {
+    transform: scale(1.02);
+}
+
+/* Actions */
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.actions vscode-button {
+    flex: 1;
+}
+
+/* Suggestion Area */
+.suggestion-area {
+    padding: 10px;
+    background: var(--vscode-inputValidation-warningBackground);
+    border: 1px solid var(--vscode-inputValidation-warningBorder);
+    border-radius: var(--oclite-border-radius);
+    font-size: 12px;
+}
+
+.suggestion-area.hidden {
+    display: none;
+}
+
+.suggestion-area p {
+    margin: 8px 0 0 0;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+/* Button States */
+vscode-button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Progress Ring */
+vscode-progress-ring {
+    width: 16px;
+    height: 16px;
+}
+
+/* Scrollbar Styling */
+.container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.container::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-background);
+    border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+/* Error State */
+.error-message {
+    padding: 10px;
+    background: var(--vscode-inputValidation-errorBackground);
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: var(--oclite-border-radius);
+    color: var(--vscode-inputValidation-errorForeground);
+    font-size: 12px;
+}
+
+/* Success Notification */
+.success-message {
+    padding: 10px;
+    background: rgba(76, 175, 80, 0.15);
+    border: 1px solid var(--oclite-success);
+    border-radius: var(--oclite-border-radius);
+    color: var(--oclite-success);
+    font-size: 12px;
+}
