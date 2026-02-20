@@ -83,7 +83,8 @@ src/
 │   └── SidebarProvider.ts        # Image generation sidebar
 ├── utilities/
 │   ├── getNonce.ts               # CSP nonce generation
-│   └── getUri.ts                 # Webview URI helper
+│   ├── getUri.ts                 # Webview URI helper
+│   └── secrets.ts                # XOR crypto + request signing (Layer 1 & 3)
 └── extension.ts                  # Entry point, command registration
 ```
 
@@ -134,15 +135,14 @@ Automatically detects the project type and suggests the best asset style:
 ## Prerequisites
 
 - [Visual Studio Code](https://code.visualstudio.com/) 1.90.0 or later
-- An OCLite API key — get one at <https://oclite.site>
 - [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat) extension (for the `@oclite` chat participant)
+
+> **No API key required.** OCLite's AI services are fully embedded and ready to use out-of-the-box.
 
 ## Getting Started
 
 1. Install the extension from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode).
-2. Open the Command Palette (`Ctrl+Shift+P`) and run **OCLite: Set API Key**.
-3. Enter your API key from <https://oclite.site>.
-4. Start generating:
+2. Start generating immediately — no configuration needed:
    - **Chat:** Type `@oclite <your prompt>` in Copilot Chat.
    - **Sidebar:** Select the OCLite icon in the Activity Bar and enter a prompt.
    - **Agent:** Right-click a file or folder → **OCLite: Analyze & Generate Assets**.
@@ -167,9 +167,18 @@ Automatically detects the project type and suggests the best asset style:
 
 ## Security
 
-- **Secrets Management** — All sensitive credentials are managed through Azure Key Vault. No API keys are committed to source control.
+OCLite uses a **3-layer security model** to protect all API credentials — even inside the packaged `.vsix` file.
+
+| Layer | Mechanism | Effect |
+| :--- | :--- | :--- |
+| **Layer 1 — XOR Encryption** | All URLs and keys are stored as encrypted byte arrays (`secrets.ts`) | No readable string exists in source or compiled output |
+| **Layer 2 — Webpack Minification** | Webpack + TerserPlugin mangles all variable names and strips comments | Reverse-engineering the compiled JS is extremely difficult |
+| **Layer 3 — Request Signing** | Every API call includes a time-based `X-OCLite-Sig` header | The raw URL alone cannot be reused outside the extension |
+
+- **Zero User Configuration** — No API key input required. All credentials are embedded securely; users install and use immediately.
+- **Git-Safe** — The sensitive `llm.ts` file is excluded from source control via `.gitignore`. A safe template (`llm.ts.example`) is provided for contributors.
 - **Content Security Policy** — Webview panels use cryptographic nonces to prevent script injection.
-- **Verified Publisher** — Published as a verified publisher on the VS Code Marketplace, ensuring code authenticity and supply chain trust.
+- **Verified Publisher** — Published as a verified publisher on the VS Code Marketplace.
 
 For more details, see [SECURITY.md](SECURITY.md).
 
@@ -179,7 +188,20 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## Release Notes
 
-### 0.0.2
+### 0.0.4
+
+- **3-Layer Security Model** — API credentials are now protected by XOR encryption, Webpack obfuscation, and per-request signing. No readable secrets exist in the compiled output.
+- **Webpack Build System** — Migrated from plain `tsc` to Webpack + TerserPlugin for minified, mangled production bundles.
+- **Zero User Configuration** — Users install and use immediately, no API key setup required.
+
+### 0.0.3
+
+- **3-Layer Security Model** — API credentials are now protected by XOR encryption, Webpack minification with variable mangling, and per-request signing. No readable URL or key exists in the packaged extension.
+- **Zero-Config Experience** — Users no longer need to input any API key. Install and use immediately.
+- **Webpack Build System** — Migrated from `tsc` to Webpack for a single optimized bundle with full minification.
+- **Request Signing** — Every LLM call now includes a time-based `X-OCLite-Sig` signature header.
+
+### 0.0.3
 
 - **Multi-Agent Pipeline** — New `ContextAnalyzerAgent`, `CreativePromptAgent`, and `AgentOrchestrator` for code-aware asset generation.
 - **Refactored LLM Gateway** — Single `llm.ts` module eliminates code duplication across services.

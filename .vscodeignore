@@ -8,6 +8,7 @@ vsc-extension-quickstart.md
 *.vsix
 node_modules/
 src/
+out/
 webpack/
 .github/
 **/__mocks__/*

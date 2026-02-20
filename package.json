@@ -2,7 +2,7 @@
     "name": "oclite-vscode",
     "displayName": "OCLite Copilot Extension",
     "description": "Generate game assets and icons directly in VS Code using OCLite AI.",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "publisher": "oclitesite",
     "repository": {
         "type": "git",
@@ -21,7 +21,7 @@
         "onView:oclite.sidebarView",
         "onView:oclite.chatView"
     ],
-    "main": "./out/extension.js",
+    "main": "./dist/extension.js",
     "contributes": {
         "chatParticipants": [
             {
@@ -126,9 +126,10 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
+        "vscode:prepublish": "npm run package",
+        "compile": "webpack --mode development",
+        "watch": "webpack --mode development --watch",
+        "package": "webpack --mode production",
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src --ext ts",
         "test": "node ./out/test/runTest.js"
@@ -139,7 +140,11 @@
         "@typescript-eslint/eslint-plugin": "^7.0.0",
         "@typescript-eslint/parser": "^7.0.0",
         "eslint": "^8.56.0",
-        "typescript": "^5.3.0"
+        "terser-webpack-plugin": "^5.3.16",
+        "ts-loader": "^9.5.4",
+        "typescript": "^5.3.0",
+        "webpack": "^5.105.2",
+        "webpack-cli": "^6.0.1"
     },
     "dependencies": {
         "@vscode/webview-ui-toolkit": "^1.4.0",

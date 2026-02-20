@@ -1,18 +1,40 @@
 /**
  * llm.ts — Single gateway for all LLM (GPT-4o mini) calls.
  *
- * This is the ONLY place where the Azure Function URL lives.
- * Every file that needs LLM access calls `callLLM()` from here.
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  SECURITY: All sensitive values (URL, key) are stored as   ║
+ * ║  XOR-encrypted byte arrays. They are NEVER present as      ║
+ * ║  readable strings in the compiled JavaScript output.        ║
+ * ║                                                             ║
+ * ║  Layer 1 — XOR encryption at rest                          ║
+ * ║  Layer 2 — Webpack minification + variable mangling        ║
+ * ║  Layer 3 — Per-request signature headers                   ║
+ * ╚══════════════════════════════════════════════════════════════╝
  *
- * SETUP: Copy this file to `llm.ts` and replace XXXXX with your actual keys.
+ * SETUP:
+ *   1. Copy this file to `llm.ts`
+ *   2. Run the encode helper to generate your own encrypted byte arrays:
+ *        node -e "const s = require('./src/utilities/secrets'); console.log(s.xorEncode('YOUR_URL'));"
+ *   3. Replace the XXXXX arrays below with the output.
  */
 import axios from 'axios';
+import { xorDecode, generateRequestSignature } from '../utilities/secrets';
 
-// GPT-4o mini gateway — Azure Function (developer-managed, key in Azure Key Vault)
-const _HOST = 'XXXXX';
-const _PATH = 'XXXXX';
-const _KEY = 'XXXXX';
-const AZURE_CHAT_URL = `${_HOST}${_PATH}?code=${_KEY}`;
+// ── Encrypted endpoint fragments (decoded only at call-time) ───────────
+// Replace these placeholder arrays with your own XOR-encoded values.
+// Use xorEncode() from secrets.ts to compute them.
+const _H: number[] = [/* XXXXX — xorEncode('https://your-azure-function.azurewebsites.net') */];
+const _P: number[] = [/* XXXXX — xorEncode('/api/YourEndpoint') */];
+const _K: number[] = [/* XXXXX — xorEncode('your-function-key') */];
+
+/** Lazily resolved endpoint — decoded once, then cached. */
+let _cachedUrl: string | null = null;
+function _resolveEndpoint(): string {
+    if (!_cachedUrl) {
+        _cachedUrl = `${xorDecode(_H)}${xorDecode(_P)}?code=${xorDecode(_K)}`;
+    }
+    return _cachedUrl;
+}
 
 /**
  * Call GPT-4o mini via Azure Function gateway.
@@ -29,14 +51,19 @@ export async function callLLM(
 ): Promise<string | null> {
     try {
         const combinedPrompt = `${systemPrompt}\n\nUser: ${userMessage}`;
+        const { signature, timestamp } = generateRequestSignature();
 
         console.log('[OCLite LLM] Sending to GPT-4o mini via Azure gateway…');
 
         const response = await axios.post(
-            AZURE_CHAT_URL,
+            _resolveEndpoint(),
             { prompt: combinedPrompt },
             {
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-OCLite-Sig': signature,
+                    'X-OCLite-TS': timestamp.toString(),
+                },
                 timeout: timeoutMs,
             },
         );
