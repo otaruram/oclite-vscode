@@ -2,11 +2,11 @@
     "name": "oclite-vscode",
     "displayName": "OCLite Copilot Extension",
     "description": "Generate game assets and icons directly in VS Code using OCLite AI.",
-    "version": "0.0.1",
-    "publisher": "oclite",
+    "version": "0.0.3",
+    "publisher": "oclitesite",
     "repository": {
         "type": "git",
-        "url": "https://github.com/oclite/oclite-vscode.git"
+        "url": "https://github.com/otaruram/oclite-vscode.git"
     },
     "engines": {
         "vscode": "^1.90.0"
@@ -38,6 +38,10 @@
                 "title": "OCLite: Set API Key"
             },
             {
+                "command": "oclite-vscode.analyzeAndGenerate",
+                "title": "OCLite: Analyze & Generate Assets"
+            },
+            {
                 "command": "oclite.saveImage",
                 "title": "OCLite: Save Image to Workspace",
                 "icon": "$(save)"
@@ -53,12 +57,8 @@
                 "icon": "$(eye)"
             },
             {
-                "command": "oclite.setChatKey",
-                "title": "OCLite: Set Chat Key (Azure Function)"
-            },
-            {
                 "command": "oclite.clearApiKey",
-                "title": "OCLite: Clear All API Keys"
+                "title": "OCLite: Clear API Key"
             }
         ],
         "configuration": {
@@ -99,6 +99,15 @@
                 }
             ]
         },
+        "menus": {
+            "explorer/context": [
+                {
+                    "when": "resourceLangId",
+                    "command": "oclite-vscode.analyzeAndGenerate",
+                    "group": "navigation"
+                }
+            ]
+        },
         "views": {
             "oclite-sidebar": [
                 {
@@ -125,15 +134,15 @@
         "test": "node ./out/test/runTest.js"
     },
     "devDependencies": {
-        "@types/vscode": "^1.90.0",
         "@types/node": "20.x",
+        "@types/vscode": "^1.90.0",
         "@typescript-eslint/eslint-plugin": "^7.0.0",
         "@typescript-eslint/parser": "^7.0.0",
         "eslint": "^8.56.0",
         "typescript": "^5.3.0"
     },
     "dependencies": {
-        "axios": "^1.6.0",
-        "@vscode/webview-ui-toolkit": "^1.4.0"
+        "@vscode/webview-ui-toolkit": "^1.4.0",
+        "axios": "^1.6.0"
     }
 }

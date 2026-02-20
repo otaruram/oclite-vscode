@@ -1,33 +1,20 @@
 import * as vscode from "vscode";
-import axios from "axios";
 import { getNonce } from "../utilities/getNonce";
+import { callLLM } from "../services/llm";
 
 /**
  * ChatProvider — Sidebar WebviewViewProvider for chatting with OCLite AI.
  *
  * Calls the Azure Function gateway that securely retrieves the LLM API key
- * from Azure Key Vault, then proxies the request to the AI backend.
- *
- * The function key (?code=...) is stored in VS Code SecretStorage — never
- * hardcoded in source. Users set it once via the "OCLite: Set Chat Key" command.
+ * from Azure Key Vault, then proxies the request to GPT-4o mini.
  */
-
-// Base URL only — the ?code= key comes from SecretStorage at runtime
-const AZURE_CHAT_BASE_URL =
-    "https://oclite-llm-key-c4hkcvdfejf6f8e5.canadacentral-01.azurewebsites.net/api/ChatWithAI";
 
 export class ChatProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = "oclite.chatView";
 
     private _view?: vscode.WebviewView;
-    private _context: vscode.ExtensionContext;
 
-    constructor(
-        private readonly _extensionUri: vscode.Uri,
-        context: vscode.ExtensionContext
-    ) {
-        this._context = context;
-    }
+    constructor(private readonly _extensionUri: vscode.Uri) {}
 
     /* ------------------------------------------------------------------ */
     /*  Lifecycle                                                          */
@@ -77,45 +64,51 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     }
 
     /* ------------------------------------------------------------------ */
-    /*  Azure Function call                                                */
+    /*  Agent Pipeline: Receive prompts from AgentOrchestrator             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Called by the AgentOrchestrator to display generated prompts
+     * and (future) images in the chat webview.
+     */
+    public async processAgentRequest(brief: string, prompts: string[]): Promise<void> {
+        if (!this._view) {
+            vscode.window.showWarningMessage(
+                'OCLite Chat panel is not open. Please open it first.',
+            );
+            return;
+        }
+
+        // Send the brief as a system message
+        this._view.webview.postMessage({
+            type: 'addResponse',
+            value: `🤖 **Agent Analysis:**\n${brief}`,
+        });
+
+        // Send each prompt
+        for (const prompt of prompts) {
+            this._view.webview.postMessage({
+                type: 'addResponse',
+                value: `🎨 **Prompt:** ${prompt}`,
+            });
+        }
+
+        // Make sure the panel is visible
+        this._view.show?.(true);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Azure Function call (uses shared LLM gateway)                      */
     /* ------------------------------------------------------------------ */
 
     private async _callAzureAI(prompt: string): Promise<string> {
-        // Retrieve the Azure Function key from SecretStorage
-        const chatKey = await this._context.secrets.get("oclite.azureChatKey");
-        if (!chatKey) {
-            return "⚠️ Azure Chat key not set. Use the command **OCLite: Set Chat Key** to configure it.";
-        }
-
-        const url = `${AZURE_CHAT_BASE_URL}?code=${chatKey}`;
-
         try {
-            const resp = await axios.post(
-                url,
-                { prompt },
-                {
-                    headers: { "Content-Type": "application/json" },
-                    timeout: 60_000,
-                }
-            );
-
-            // The Azure Function may return { result: "..." } or { response: "..." }
-            const body = resp.data;
-            return (
-                body.result ??
-                body.response ??
-                body.message ??
-                body.choices?.[0]?.message?.content ??
-                JSON.stringify(body)
-            );
+            const systemPrompt = "You are OCLite AI, a helpful creative assistant for game developers. Respond concisely and helpfully.";
+            const result = await callLLM(prompt, systemPrompt, 60_000);
+            return result ?? "⚠️ No response from AI. Please try again.";
         } catch (err: any) {
             console.error("OCLite ChatProvider error:", err);
-            const status = err.response?.status;
-            const detail =
-                err.response?.data?.error ??
-                err.response?.data?.message ??
-                err.message;
-            return `⚠️ Error${status ? ` (${status})` : ""}: ${detail}`;
+            return `⚠️ Error: ${err.message}`;
         }
     }
 

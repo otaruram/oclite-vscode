@@ -1,13 +1,6 @@
-import axios from 'axios';
 import * as vscode from 'vscode';
 import * as path from 'path';
-
-// OCLite API endpoints (image generation only — not secret)
-const OCLITE_API_BASE_URL = 'https://oclite-api.onrender.com';
-
-// Azure Function base URL (the ?code= key is stored in SecretStorage)
-const AZURE_CHAT_BASE_URL =
-    'https://oclite-llm-key-c4hkcvdfejf6f8e5.canadacentral-01.azurewebsites.net/api/ChatWithAI';
+import { callLLM } from './llm';
 
 // Category-specific style presets for SDXL optimization
 const CATEGORY_PRESETS: Record<string, string> = {
@@ -45,59 +38,12 @@ export class AIService {
         return !!key;
     }
 
-    // ─── Core: Call LLM via Azure Function (key from SecretStorage) ───
-    /**
-     * Send a prompt to the Azure Function AI gateway.
-     * The function key (?code=...) is stored in VS Code SecretStorage.
-     * Returns the assistant message content, or null on failure.
-     */
-    private async callLLM(systemPrompt: string, userMessage: string): Promise<string | null> {
-        try {
-            const functionKey = await this.context.secrets.get('oclite.azureChatKey');
-            if (!functionKey) {
-                console.warn('[OCLite LLM] No Azure Function key stored. Skipping LLM call.');
-                return null;
-            }
-
-            const url = `${AZURE_CHAT_BASE_URL}?code=${functionKey}`;
-            const combinedPrompt = `${systemPrompt}\n\nUser: ${userMessage}`;
-
-            console.log('[OCLite LLM] Calling Azure Function AI gateway...');
-
-            const response = await axios.post(url, {
-                prompt: combinedPrompt
-            }, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-            });
-
-            const body = response.data;
-            const content = (
-                body.result ??
-                body.response ??
-                body.message ??
-                body.choices?.[0]?.message?.content ??
-                ''
-            ).trim();
-
-            if (content) {
-                console.log('[OCLite LLM] Response:', content.substring(0, 120));
-                return content;
-            }
-
-            console.warn('[OCLite LLM] Empty response from Azure Function');
-        } catch (error: any) {
-            console.error('[OCLite LLM] Call failed:', error.response?.status, error.response?.data || error.message);
-        }
-
-        return null;
-    }
+    // ─── Core: Call GPT-4o mini via shared LLM gateway (see llm.ts) ──
 
     // ─── Phase 1: Prompt Refinement ─────────────────────────────────────
     /**
-     * Sends user prompt to Azure Function AI gateway for refinement.
-     * The LLM determines the optimal style, colors, lighting, composition.
-     * Falls back to local preset enhancement if LLM is unavailable.
+     * Flow: User prompt → GPT-4o mini (refine) → refined prompt → image model
+     * Falls back to local preset enhancement if GPT-4o mini is unavailable.
      */
     async refinePrompt(userPrompt: string, category?: string): Promise<{ prompt: string; fromLLM: boolean }> {
         const categoryHint = category && category !== 'None' && CATEGORY_PRESETS[category]
@@ -110,50 +56,80 @@ Determine the best artistic STYLE, optimal COLORS and color palette, LIGHTING de
 Do NOT add any text or watermark instructions. Maximum 75 words.
 Output ONLY the final prompt, no explanations.${categoryHint}`;
 
-        console.log('[OCLite] Attempting LLM prompt refinement via Azure Function...');
-        const result = await this.callLLM(systemPrompt, userPrompt);
+        console.log('[OCLite] Sending prompt to GPT-4o mini for refinement...');
+        const result = await callLLM(userPrompt, systemPrompt);
         if (result) {
             const cleaned = result.replace(/^["']|["']$/g, '').trim();
             if (cleaned.length > 10) {
-                console.log('[OCLite] LLM refinement succeeded.');
+                console.log('[OCLite] GPT-4o mini refinement succeeded.');
                 return { prompt: cleaned, fromLLM: true };
             }
         }
 
-        console.warn('[OCLite] LLM refinement failed or returned empty. Using local fallback.');
+        console.warn('[OCLite] GPT-4o mini unavailable. Using local fallback.');
         return { prompt: this.localRefinePrompt(userPrompt, category), fromLLM: false };
     }
 
     /**
-     * Local fallback prompt enhancement when LLM is unavailable
+     * Local fallback prompt enhancement when LLM is unavailable.
+     * Analyses the user prompt to pick contextual style, lighting, and composition
+     * boosters instead of dumping a generic boilerplate.
      */
     private localRefinePrompt(userPrompt: string, category?: string): string {
+        const prompt = userPrompt.trim().toLowerCase();
+
+        // ── Detect subject & pick matching style ──
+        const STYLE_RULES: { keywords: string[]; style: string }[] = [
+            { keywords: ['character', 'warrior', 'knight', 'hero', 'wizard', 'person', 'girl', 'boy', 'man', 'woman'],
+              style: 'concept art, dynamic pose, detailed anatomy, strong silhouette' },
+            { keywords: ['icon', 'ui', 'button', 'badge', 'logo'],
+              style: 'clean vector icon, flat design, crisp edges, centered, high contrast' },
+            { keywords: ['landscape', 'environment', 'city', 'forest', 'mountain', 'sky', 'ocean', 'room'],
+              style: 'cinematic wide shot, atmospheric perspective, matte painting style' },
+            { keywords: ['texture', 'tile', 'material', 'surface', 'wood', 'stone', 'metal'],
+              style: 'seamless tileable texture, PBR-ready, neutral even lighting' },
+            { keywords: ['pixel', 'retro', 'sprite', '8-bit', '16-bit'],
+              style: 'pixel art, retro game aesthetic, limited color palette, clean edges' },
+            { keywords: ['anime', 'manga', 'cel', 'cartoon'],
+              style: 'anime illustration, cel shading, vibrant colors, expressive' },
+        ];
+
+        let detectedStyle = 'digital art, trending on Artstation';
+        for (const rule of STYLE_RULES) {
+            if (rule.keywords.some(kw => prompt.includes(kw))) {
+                detectedStyle = rule.style;
+                break;
+            }
+        }
+
+        // ── Category preset (overrides detection if present) ──
         const categoryPreset = category && category !== 'None' && CATEGORY_PRESETS[category]
             ? CATEGORY_PRESETS[category]
             : '';
 
-        const qualityBoosters = 'highly detailed, masterpiece, professional quality, 8K, sharp focus';
-        const lightingBoosters = 'volumetric lighting, ambient occlusion, rim light';
+        // ── Contextual lighting (avoid generic dump) ──
+        const isNight = /night|dark|moon|neon|glow/.test(prompt);
+        const lighting = isNight
+            ? 'neon glow, dramatic rim light, volumetric fog'
+            : 'soft natural light, global illumination, subtle rim light';
 
+        // ── Build final prompt ──
         const parts = [
             userPrompt.trim(),
-            categoryPreset,
-            qualityBoosters,
-            lightingBoosters,
+            categoryPreset || detectedStyle,
+            lighting,
+            'highly detailed, masterpiece, sharp focus',
         ].filter(Boolean);
 
         const refined = parts.join(', ');
         const words = refined.split(/\s+/);
-        if (words.length > 75) {
-            return words.slice(0, 75).join(' ');
-        }
-        return refined;
+        return words.length > 75 ? words.slice(0, 75).join(' ') : refined;
     }
 
     // ─── Phase 4: Smart Auto-Naming ─────────────────────────────────────
     /**
-     * Asks LLM via Azure Function to produce a descriptive
-     * snake_case filename. Falls back to keyword extraction.
+     * Asks GPT-4o mini to produce a descriptive snake_case filename.
+     * Falls back to keyword extraction if unavailable.
      */
     async generateName(prompt: string, category?: string): Promise<string> {
         const categoryHint = category ? ` (category: ${category})` : '';
@@ -163,7 +139,7 @@ Use 2-4 words that describe the content. Add suffix _01 for versioning.
 Avoid generic words like image, asset, picture.
 Output ONLY the filename. Example: dragon_concept_art_01.png`;
 
-        const result = await this.callLLM(systemPrompt, `Prompt: "${prompt}"${categoryHint}`);
+        const result = await callLLM(`Prompt: "${prompt}"${categoryHint}`, systemPrompt);
         if (result) {
             let name = result.replace(/[^a-zA-Z0-9_.-]/g, '').toLowerCase();
             if (name.length > 3) {

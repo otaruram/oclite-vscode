@@ -1,0 +1,68 @@
+/**
+ * llm.ts — Single gateway for all LLM (GPT-4o mini) calls.
+ *
+ * This is the ONLY place where the Azure Function URL lives.
+ * Every file that needs LLM access calls `callLLM()` from here.
+ *
+ * SETUP: Copy this file to `llm.ts` and replace XXXXX with your actual keys.
+ */
+import axios from 'axios';
+
+// GPT-4o mini gateway — Azure Function (developer-managed, key in Azure Key Vault)
+const _HOST = 'XXXXX';
+const _PATH = 'XXXXX';
+const _KEY = 'XXXXX';
+const AZURE_CHAT_URL = `${_HOST}${_PATH}?code=${_KEY}`;
+
+/**
+ * Call GPT-4o mini via Azure Function gateway.
+ *
+ * @param userMessage — The user's input / content to process.
+ * @param systemPrompt — Instructions that guide the LLM's behaviour.
+ * @param timeoutMs — Request timeout in milliseconds (default 30 000).
+ * @returns The LLM's text response, or `null` on failure.
+ */
+export async function callLLM(
+    userMessage: string,
+    systemPrompt: string,
+    timeoutMs = 30_000,
+): Promise<string | null> {
+    try {
+        const combinedPrompt = `${systemPrompt}\n\nUser: ${userMessage}`;
+
+        console.log('[OCLite LLM] Sending to GPT-4o mini via Azure gateway…');
+
+        const response = await axios.post(
+            AZURE_CHAT_URL,
+            { prompt: combinedPrompt },
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: timeoutMs,
+            },
+        );
+
+        const body = response.data;
+        const content = (
+            body.result ??
+            body.response ??
+            body.message ??
+            body.choices?.[0]?.message?.content ??
+            ''
+        ).trim();
+
+        if (content) {
+            console.log('[OCLite LLM] Response:', content.substring(0, 120));
+            return content;
+        }
+
+        console.warn('[OCLite LLM] Empty response from GPT-4o mini');
+    } catch (error: any) {
+        console.error(
+            '[OCLite LLM] Call failed:',
+            error.response?.status,
+            error.response?.data || error.message,
+        );
+    }
+
+    return null;
+}

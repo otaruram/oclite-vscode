@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import { AIService } from './services/ai';
 import { SidebarProvider } from './panels/SidebarProvider';
 import { ChatProvider } from './panels/ChatProvider';
+import { AgentOrchestrator } from './agents/AgentOrchestrator';
 
 interface ChatResult extends vscode.ChatResult {
     metadata: {
@@ -49,14 +50,14 @@ class OCLiteExtension {
 
             let promptToUse = request.prompt;
             try {
-                stream.progress('🤖 Sending prompt to LLM for refinement...');
+                stream.progress('🤖 Refining prompt with GPT-4o mini...');
                 const refined = await this.aiService.refinePrompt(request.prompt);
                 if (refined.prompt !== request.prompt) {
                     promptToUse = refined.prompt;
                     if (refined.fromLLM) {
-                        stream.markdown(`**🤖 Refined by LLM (GPT-4o mini):** _${refined.prompt}_\n\n`);
+                        stream.markdown(`**🤖 Refined by GPT-4o mini:** _${refined.prompt}_\n\n`);
                     } else {
-                        stream.markdown(`**⚡ Enhanced (local fallback):** _${refined.prompt}_\n\n`);
+                        stream.markdown(`**⚡ Enhanced locally:** _${refined.prompt}_\n\n`);
                     }
                 }
             } catch (err) {
@@ -252,8 +253,8 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    // Register Chat Provider (Azure AI Chat) — pass context for SecretStorage
-    const chatProvider = new ChatProvider(context.extensionUri, context);
+    // Register Chat Provider (Azure AI Chat)
+    const chatProvider = new ChatProvider(context.extensionUri);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             ChatProvider.viewType,
@@ -261,24 +262,29 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    // ── Extra commands: Set Chat Key & Clear API Key ──
-    context.subscriptions.push(
-        vscode.commands.registerCommand('oclite.setChatKey', async () => {
-            const key = await vscode.window.showInputBox({
-                prompt: 'Enter your Azure Function key (?code=... value)',
-                placeHolder: 'zUQvN3zH…',
-                password: true,
-                ignoreFocusOut: true,
-            });
-            if (key) {
-                await context.secrets.store('oclite.azureChatKey', key);
-                vscode.window.showInformationMessage('OCLite Chat Key stored securely.');
+    // ── OCLite Agent: Analyze & Generate ──
+    const analyzeAndGenerateCommand = vscode.commands.registerCommand(
+        'oclite-vscode.analyzeAndGenerate',
+        async (resourceUri: vscode.Uri) => {
+            if (!resourceUri) {
+                vscode.window.showErrorMessage('Please right-click on a file or folder in Explorer.');
+                return;
             }
-        }),
+
+            const result = await AgentOrchestrator.run(resourceUri);
+            if (result) {
+                await chatProvider.processAgentRequest(result.brief, result.prompts);
+            }
+        },
+    );
+
+    context.subscriptions.push(analyzeAndGenerateCommand);
+
+    // ── Clear OCLite API key command ──
+    context.subscriptions.push(
         vscode.commands.registerCommand('oclite.clearApiKey', async () => {
             await vscode.workspace.getConfiguration('oclite').update('apiKey', undefined, vscode.ConfigurationTarget.Global);
-            await context.secrets.delete('oclite.azureChatKey');
-            vscode.window.showInformationMessage('All OCLite API keys have been cleared.');
+            vscode.window.showInformationMessage('OCLite API key has been cleared.');
         })
     );
 

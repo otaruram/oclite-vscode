@@ -8,6 +8,9 @@ out
 .env.local
 .env.*.local
 
+# LLM gateway with real keys (use llm.ts.example as template)
+src/services/llm.ts
+
 # OS files
 .DS_Store
 Thumbs.db
