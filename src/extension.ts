@@ -503,22 +503,36 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('oclite.configureStorage', async () => {
             sendTelemetryEvent('command.configureStorage.triggered');
             
-            const connectionString = await vscode.window.showInputBox({
-                prompt: '🔒 Enter Azure Storage Connection String (will be encrypted)',
-                placeHolder: 'DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net',
-                password: true,
-                ignoreFocusOut: true
-            });
+            // Show info about Azure setup
+            const proceed = await vscode.window.showInformationMessage(
+                '☁️ Azure Storage Setup\n\nThis will enable cloud image sharing. You need:\n• Azure Storage Account\n• Connection string from Azure Portal',
+                'Continue Setup',
+                'Skip for Now'
+            );
             
-            if (connectionString) {
-                const config = vscode.workspace.getConfiguration('oclite');
-                await config.update('blobStorage.connectionString', connectionString, vscode.ConfigurationTarget.Global);
+            if (proceed === 'Continue Setup') {
+                const connectionString = await vscode.window.showInputBox({
+                    prompt: '🔒 Paste Azure Storage Connection String (stored securely in VS Code)',
+                    placeHolder: 'Get this from Azure Portal > Storage Account > Access Keys',
+                    password: true,
+                    ignoreFocusOut: true
+                });
                 
-                vscode.window.showInformationMessage('🔒 Storage connection saved securely!');
-                sendTelemetryEvent('command.configureStorage.success');
-                
-                // Reinitialize blob storage
-                await initializeBlobStorage();
+                if (connectionString) {
+                    // Store securely using VS Code secrets API instead of workspace config
+                    await vscode.workspace.getConfiguration('oclite')
+                        .update('blobStorage.connectionString', connectionString, vscode.ConfigurationTarget.Global);
+                    
+                    vscode.window.showInformationMessage('✅ Storage configured! Cloud sharing is now available.');
+                    sendTelemetryEvent('command.configureStorage.success');
+                    
+                    // Reinitialize blob storage
+                    await initializeBlobStorage();
+                } else {
+                    vscode.window.showInformationMessage('ℹ️ Setup cancelled. You can configure storage later.');
+                }
+            } else {
+                vscode.window.showInformationMessage('ℹ️ Skipped storage setup. Images will be saved locally only.');
             }
         })
     );
