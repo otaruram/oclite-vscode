@@ -14,6 +14,20 @@ import { GalleryImage } from '../types';
 import { getBlobSasUrl } from '../utilities/secrets';
 import { uploadToImageKit } from './imagekit';
 
+/**
+ * Sanitise a string so it is safe for use as an Azure Blob metadata value.
+ * Azure metadata is sent as HTTP headers, which only allow visible ASCII (0x20-0x7E).
+ * We filter char-by-char to guarantee only printable ASCII passes through.
+ */
+function sanitizeMetadata(value: string, maxLen = 1024): string {
+    let out = '';
+    for (let i = 0; i < value.length && out.length < maxLen; i++) {
+        const code = value.charCodeAt(i);
+        out += (code >= 0x20 && code <= 0x7E) ? value[i] : '';
+    }
+    return out || 'unknown';
+}
+
 // Re-export types so existing consumers still work
 export type { GalleryImage } from '../types';
 
@@ -123,15 +137,16 @@ export async function uploadGeneratedImage(
                 blobCacheControl: 'public, max-age=31536000',
             },
             metadata: {
-                originalPrompt,
-                model,
+                originalPrompt: sanitizeMetadata(originalPrompt),
+                originalPromptB64: Buffer.from(originalPrompt, 'utf8').toString('base64').substring(0, 1024),
+                model: sanitizeMetadata(model),
                 generatedBy: 'oclite-vscode',
                 timestamp: new Date().toISOString(),
-                userId: userHash,
-                userEmail: _currentUserSession.account.label || 'anonymous',
+                userId: sanitizeMetadata(userHash),
+                userEmail: sanitizeMetadata(_currentUserSession.account.label || 'anonymous'),
                 shareable: 'true',
-                imageKitUrl,
-                imageKitFileId: ikResult?.fileId || '',
+                imageKitUrl: sanitizeMetadata(imageKitUrl || ''),
+                imageKitFileId: sanitizeMetadata(ikResult?.fileId || ''),
             },
         });
 
@@ -192,7 +207,9 @@ export async function fetchImageGallery(maxResults: number = 50): Promise<Galler
                 shareId: blob.metadata?.imageKitFileId || blob.name,
                 lastModified: blob.properties.lastModified || new Date(),
                 sizeBytes: blob.properties.contentLength || 0,
-                originalPrompt: blob.metadata?.originalPrompt || 'Unknown prompt',
+                originalPrompt: (blob.metadata?.originalPromptB64
+                    ? Buffer.from(blob.metadata.originalPromptB64, 'base64').toString('utf8')
+                    : blob.metadata?.originalPrompt) || 'Unknown prompt',
                 model: blob.metadata?.model || 'unknown',
                 userId: blob.metadata?.userId || 'unknown',
             });

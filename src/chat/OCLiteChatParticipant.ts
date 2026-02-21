@@ -144,7 +144,6 @@ export class OCLiteChatParticipant {
                 const buf = fs.readFileSync(localPath);
                 const shareUrl = await uploadGeneratedImage(buf, prompt, model);
                 if (shareUrl) {
-                    stream.markdown(`\n🔗 **Image Link:** [${shareUrl}](${shareUrl})\n`);
                     stream.button({ command: 'oclite.copyShareLink', title: '📋 Copy Image Link', arguments: [shareUrl] });
                     sendTelemetryEvent('generation.cloudUpload.success');
                 }

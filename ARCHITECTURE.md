@@ -47,9 +47,26 @@ OCLite is built on a **cloud-native, serverless architecture** that separates co
 
 API processing is handled through **Azure Functions (Node.js)**, providing automatic scaling and pay-as-you-go cost efficiency. The extension never communicates directly with GPU infrastructure — all requests are routed through the serverless layer.
 
+### Image CDN — ImageKit
+
+Generated images are uploaded to **ImageKit** as a public CDN. The workflow:
+
+1. Raw PNG buffer is uploaded to ImageKit via the `@imagekit/nodejs` SDK.
+2. ImageKit returns a permanent CDN URL (e.g. `https://ik.imagekit.io/…`).
+3. The CDN URL is stored as metadata in Azure Blob Storage for record-keeping.
+4. The user receives only the CDN URL as the "Image Link".
+
+Upload resilience: 60-second timeout with 3 automatic retries and linear backoff.
+
+### Azure Blob Storage
+
+Azure Blob Storage (`oclite-gallery` container) serves as the metadata and backup layer. Each blob stores the original PNG plus metadata headers (prompt, model, user, ImageKit URL). Access is via a long-lived Account SAS token.
+
+> **Metadata safety:** All metadata values are sanitised to ASCII-only (0x20-0x7E) before upload to avoid `Invalid character in header content` errors.
+
 ### Secrets Management
 
-All API keys (GPT-4o mini, Replicate) are stored in **Azure Key Vault**. No credentials are hardcoded in the extension or committed to version control. User-provided OCLite API keys are stored in VS Code's secure configuration store.
+All secrets (API keys, SAS URLs, ImageKit credentials) are **XOR-encrypted at rest** inside `src/utilities/secrets.ts` and decrypted at runtime. The `secrets.ts` file is excluded from version control via `.gitignore`. The production bundle (`dist/extension.js`) is verified after each build to ensure no plain-text secrets are present.
 
 ### CI/CD Pipeline
 
