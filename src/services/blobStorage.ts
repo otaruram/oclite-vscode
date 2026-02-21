@@ -10,9 +10,9 @@ import * as vscode from 'vscode';
 import { sendTelemetryEvent } from './telemetry';
 import { hashUserId, getUserContainerPath } from './auth';
 import { checkRateLimit, getRateLimitStatus as _getRateLimitStatus } from './rateLimit';
-import { generateShareId, createShareUrl, copyShareUrl, SHARE_BASE_URL } from './sharing';
 import { GalleryImage } from '../types';
 import { getBlobSasUrl } from '../utilities/secrets';
+import { uploadToImageKit } from './imagekit';
 
 // Re-export types so existing consumers still work
 export type { GalleryImage } from '../types';
@@ -98,15 +98,24 @@ export async function uploadGeneratedImage(
     if (!checkRateLimit(_currentUserSession.account.id)) return null;
 
     try {
+        // Step 1: Upload raw image to ImageKit CDN
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const slug = originalPrompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-').substring(0, 30);
-        const userPath = getUserContainerPath(_currentUserSession);
         const fileName = `${timestamp}_${model}_${slug}.png`;
-        const blobName = `${userPath}/${fileName}`;
-        const blockBlob: BlockBlobClient = _containerClient.getBlockBlobClient(blobName);
+        const userHash = hashUserId(_currentUserSession.account.id);
+        const folder = `/oclite-gallery/${userHash}`;
 
-        const shareId = generateShareId(blobName, timestamp);
-        const shareUrl = createShareUrl(shareId);
+        const ikResult = await uploadToImageKit(imageBuffer, fileName, folder, ['oclite', model]);
+        const imageKitUrl = ikResult?.url || '';
+
+        if (!imageKitUrl) {
+            console.warn('[OCLite Blob] ImageKit upload failed — saving to blob only');
+        }
+
+        // Step 2: Store image + ImageKit URL in Azure Blob Storage
+        const userPath = getUserContainerPath(_currentUserSession);
+        const blobName = `${userPath}/${fileName}`;
+        const blockBlob = _containerClient.getBlockBlobClient(blobName);
 
         await blockBlob.uploadData(imageBuffer, {
             blobHTTPHeaders: {
@@ -118,23 +127,25 @@ export async function uploadGeneratedImage(
                 model,
                 generatedBy: 'oclite-vscode',
                 timestamp: new Date().toISOString(),
-                userId: hashUserId(_currentUserSession.account.id),
+                userId: userHash,
                 userEmail: _currentUserSession.account.label || 'anonymous',
                 shareable: 'true',
-                shareId,
-                shareUrl,
+                imageKitUrl,
+                imageKitFileId: ikResult?.fileId || '',
             },
         });
 
+        // The share link is the ImageKit CDN URL
+        const shareUrl = imageKitUrl || blockBlob.url;
+
         console.log(`[OCLite Blob] Uploaded — Share: ${shareUrl}`);
-        vscode.window.showInformationMessage(`✨ Uploaded! Share: ${shareUrl}`, 'Copy Link', 'Gallery').then((s) => {
+        vscode.window.showInformationMessage(`✨ Uploaded! Image link ready.`, 'Copy Link').then((s) => {
             if (s === 'Copy Link') { vscode.env.clipboard.writeText(shareUrl); vscode.window.showInformationMessage('📋 Copied!'); }
-            else if (s === 'Gallery') vscode.commands.executeCommand('oclite.viewGallery');
         });
 
         sendTelemetryEvent('blob.upload.success', {
             model, fileName, promptLength: originalPrompt.length.toString(),
-            userId: hashUserId(_currentUserSession.account.id), shareId,
+            userId: userHash, hasImageKit: (!!imageKitUrl).toString(),
         }, { imageSizeBytes: imageBuffer.length });
 
         return shareUrl;
@@ -170,14 +181,15 @@ export async function fetchImageGallery(maxResults: number = 50): Promise<Galler
             if (blob.metadata?.userId !== uid) continue;
 
             const url = _containerClient.getBlobClient(blob.name).url;
-            const sid = blob.metadata?.shareId || generateShareId(blob.name, blob.properties.lastModified?.toISOString() || '');
-            const surl = blob.metadata?.shareUrl || `${SHARE_BASE_URL}/${sid}`;
+            const imageKitUrl = blob.metadata?.imageKitUrl || '';
+            // Use ImageKit URL as the share URL; fall back to blob URL
+            const shareUrl = imageKitUrl || url;
 
             images.push({
                 name: blob.name,
-                url,
-                shareUrl: surl,
-                shareId: sid,
+                url: imageKitUrl || url,
+                shareUrl,
+                shareId: blob.metadata?.imageKitFileId || blob.name,
                 lastModified: blob.properties.lastModified || new Date(),
                 sizeBytes: blob.properties.contentLength || 0,
                 originalPrompt: blob.metadata?.originalPrompt || 'Unknown prompt',
@@ -200,8 +212,16 @@ export async function fetchImageGallery(maxResults: number = 50): Promise<Galler
 
 // ── Copy Image Link ────────────────────────────────────────────────────────
 
-export async function copyImageLink(shareUrl: string, prompt: string): Promise<void> {
-    return copyShareUrl(shareUrl, prompt);
+export async function copyImageLink(imageUrl: string, prompt: string): Promise<void> {
+    try {
+        await vscode.env.clipboard.writeText(imageUrl);
+        vscode.window.showInformationMessage(
+            `📋 Image link copied! "${prompt.substring(0, 30)}${prompt.length > 30 ? '...' : ''}"`
+        );
+        sendTelemetryEvent('blob.link.copied', { linkType: 'imagekit' });
+    } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to copy link: ${error.message}`);
+    }
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────

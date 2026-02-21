@@ -2,7 +2,7 @@
     "name": "oclite-vscode",
     "displayName": "OCLite Copilot Extension",
     "description": "AI-powered creative asset generation with Azure cloud integration. Generate game assets, icons, and graphics directly in VS Code using advanced AI models.",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "publisher": "oclitesite",
     "repository": {
         "type": "git",
@@ -18,7 +18,7 @@
     "keywords": [
         "AI",
         "image generation",
-        "game development", 
+        "game development",
         "assets",
         "creative",
         "Azure",
@@ -103,7 +103,7 @@
             },
             {
                 "command": "oclite.shareImage",
-                "title": "OCLite: Share Image Link", 
+                "title": "OCLite: Share Image Link",
                 "icon": "$(link)"
             },
             {
@@ -145,7 +145,7 @@
                     "description": "Select the AI model for image generation."
                 },
                 "oclite.blobStorage.autoUpload": {
-                    "type": "boolean", 
+                    "type": "boolean",
                     "default": true,
                     "description": "Automatically upload generated images to cloud storage"
                 },
@@ -221,6 +221,7 @@
     },
     "dependencies": {
         "@azure/storage-blob": "^12.31.0",
+        "@imagekit/nodejs": "^7.3.0",
         "@vscode/extension-telemetry": "^1.3.0",
         "@vscode/webview-ui-toolkit": "^1.4.0",
         "axios": "^1.6.0"

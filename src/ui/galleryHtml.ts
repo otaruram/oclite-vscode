@@ -14,11 +14,9 @@ export function createGalleryHtml(images: GalleryImage[]): string {
                     <h3>${img.originalPrompt}</h3>
                     <p><strong>Model:</strong> ${img.model}</p>
                     <p><strong>Generated:</strong> ${img.lastModified.toLocaleDateString()}</p>
-                    <p class="share-url"><strong>Share Link:</strong> <code>${img.shareUrl}</code></p>
                     <div class="sharing-actions">
                         <a href="${img.url}" target="_blank" class="action-link">🔗 View Full Size</a>
-                        <button onclick="copyToClipboard('${img.shareUrl}', '${safePrompt}')" class="action-link copy-btn">📋 Copy Share Link</button>
-                        <button onclick="shareToSocial('${img.shareUrl}', '${safePrompt}')" class="action-link share-btn">🚀 Share</button>
+                        <button onclick="copyToClipboard('${img.shareUrl}')" class="action-link copy-btn">📋 Copy Image Link</button>
                     </div>
                 </div>
             </div>`;
@@ -64,12 +62,6 @@ export function createGalleryHtml(images: GalleryImage[]): string {
             color: var(--vscode-editor-foreground); line-height: 1.3;
         }
         .image-info p { margin: 6px 0; font-size: 12px; opacity: 0.8; }
-        .share-url {
-            background: var(--vscode-textBlockQuote-background);
-            padding: 6px 10px; border-radius: 4px;
-            word-break: break-all; font-size: 11px !important;
-        }
-        .share-url code { color: var(--vscode-textLink-foreground); user-select: all; }
         .sharing-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
         .action-link {
             display: inline-block; padding: 8px 12px;
@@ -86,8 +78,6 @@ export function createGalleryHtml(images: GalleryImage[]): string {
             color: var(--vscode-button-secondaryForeground);
         }
         .copy-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
-        .share-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .share-btn:hover { background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%); }
         .toast {
             position: fixed; top: 20px; right: 20px;
             background: var(--vscode-notifications-background);
@@ -103,14 +93,14 @@ export function createGalleryHtml(images: GalleryImage[]): string {
 <body>
     <div class="gallery-header">
         <h1>🎨 Your OCLite Gallery</h1>
-        <p>AI-generated images with shareable public links</p>
+        <p>AI-generated images stored on cloud</p>
     </div>
     <div class="gallery-grid">${imageCards}</div>
     <div id="toast" class="toast"></div>
     <script>
         function copyToClipboard(url) {
             navigator.clipboard.writeText(url).then(() => {
-                showToast('📋 Link copied to clipboard!');
+                showToast('📋 Image link copied!');
             }).catch(() => {
                 const ta = document.createElement('textarea');
                 ta.value = url;
@@ -118,21 +108,8 @@ export function createGalleryHtml(images: GalleryImage[]): string {
                 ta.select();
                 document.execCommand('copy');
                 document.body.removeChild(ta);
-                showToast('📋 Link copied to clipboard!');
+                showToast('📋 Image link copied!');
             });
-        }
-        function shareToSocial(url, promptText) {
-            const text = encodeURIComponent('Check out this AI-generated image: "' + promptText + '"');
-            const encoded = encodeURIComponent(url);
-            const platforms = [
-                { name: 'Twitter', url: 'https://twitter.com/intent/tweet?text=' + text + '&url=' + encoded },
-                { name: 'Facebook', url: 'https://www.facebook.com/sharer/sharer.php?u=' + encoded },
-                { name: 'LinkedIn', url: 'https://www.linkedin.com/sharing/share-offsite/?url=' + encoded },
-                { name: 'Reddit', url: 'https://reddit.com/submit?url=' + encoded + '&title=' + text }
-            ];
-            const choice = prompt('Share to:\\n1. Twitter\\n2. Facebook\\n3. LinkedIn\\n4. Reddit\\n5. Copy link only\\n\\nEnter number (1-5):');
-            if (choice >= '1' && choice <= '4') window.open(platforms[parseInt(choice)-1].url, '_blank');
-            else if (choice === '5') copyToClipboard(url);
         }
         function showToast(msg) {
             const t = document.getElementById('toast');

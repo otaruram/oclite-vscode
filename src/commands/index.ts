@@ -28,12 +28,7 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
     // ── Image sharing ──────────────────────────────────────────────────
     push(
         vscode.commands.registerCommand('oclite.shareImage', async (imageUrl?: string, prompt?: string) => {
-            if (!imageUrl) {
-                imageUrl = await vscode.window.showInputBox({
-                    prompt: 'Enter image URL to share',
-                    placeHolder: 'https://...blob.core.windows.net/.../image.png',
-                });
-            }
+            // Legacy command — now just copies the ImageKit URL
             if (imageUrl) {
                 await copyImageLink(imageUrl, prompt || 'Shared OCLite image');
                 sendTelemetryEvent('command.shareImage.used');
@@ -43,7 +38,7 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand('oclite.copyShareLink', async (url: string) => {
             try {
                 await vscode.env.clipboard.writeText(url);
-                vscode.window.showInformationMessage('📋 Share link copied to clipboard!');
+                vscode.window.showInformationMessage('📋 Image link copied!');
                 sendTelemetryEvent('command.copyShareLink.success');
             } catch (e: any) {
                 vscode.window.showErrorMessage(`Failed to copy link: ${e.message}`);

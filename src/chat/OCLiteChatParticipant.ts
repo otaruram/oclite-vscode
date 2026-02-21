@@ -78,10 +78,8 @@ export class OCLiteChatParticipant {
                     stream.button({ command: 'oclite.saveImage', title: '💾 Save to Workspace', arguments: [localPath, prompt] });
                     stream.button({ command: 'oclite.previewImage', title: '👁️ Preview Image', arguments: [localPath] });
 
-                    // Cloud upload first, then show share button with the correct URL
-                    const shareUrl = await this.tryCloudUpload(localPath, prompt, model, stream);
-                    const linkToShare = shareUrl || imageUrl; // fallback to raw URL if cloud fails
-                    stream.button({ command: 'oclite.shareImage', title: '🚀 Share Image', arguments: [linkToShare, prompt] });
+                    // Upload to ImageKit + Blob, show share link
+                    await this.tryCloudUpload(localPath, prompt, model, stream);
                 } catch (error: any) {
                     const msg = error.response?.data?.detail || error.message || 'Unknown error';
                     stream.markdown(`❌ **Generation Failed**\n\n**Reason:** ${msg}`);
@@ -138,28 +136,26 @@ export class OCLiteChatParticipant {
         prompt: string,
         model: string,
         stream: vscode.ChatResponseStream
-    ): Promise<string | null> {
+    ): Promise<void> {
         try {
             const user = getCurrentUser();
             if (user && fs.existsSync(localPath)) {
-                stream.progress('☁️ Uploading to cloud for sharing...');
+                stream.progress('☁️ Uploading to cloud...');
                 const buf = fs.readFileSync(localPath);
                 const shareUrl = await uploadGeneratedImage(buf, prompt, model);
                 if (shareUrl) {
-                    stream.markdown(`\n🔗 **Share Link:** ${shareUrl}\n`);
-                    stream.button({ command: 'oclite.copyShareLink', title: '📋 Copy Share Link', arguments: [shareUrl] });
+                    stream.markdown(`\n🔗 **Image Link:** [${shareUrl}](${shareUrl})\n`);
+                    stream.button({ command: 'oclite.copyShareLink', title: '📋 Copy Image Link', arguments: [shareUrl] });
                     sendTelemetryEvent('generation.cloudUpload.success');
-                    return shareUrl;
                 }
             } else if (!user) {
-                stream.markdown('\n💡 **Tip:** Microsoft sign-in is required for sharing and gallery features.');
+                stream.markdown('\n💡 **Tip:** Sign in with Microsoft to enable cloud sharing.');
                 sendTelemetryEvent('generation.cloudUpload.skipped', { reason: 'no_auth' });
             }
         } catch (err: any) {
-            stream.markdown('\n💡 **Note:** Cloud sharing unavailable. Configure Azure storage to enable sharing.');
+            stream.markdown('\n💡 **Note:** Cloud sharing unavailable right now.');
             sendTelemetryEvent('generation.cloudUpload.error', { error: err.message });
         }
-        return null;
     }
 
     // ── Temp file management ───────────────────────────────────────────────
