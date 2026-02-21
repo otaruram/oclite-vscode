@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { getNonce } from "../utilities/getNonce";
 import { callLLM } from "../services/llm";
+import { sendTelemetryEvent } from "../services/telemetry";
 
 /**
  * ChatProvider — Sidebar WebviewViewProvider for chatting with OCLite AI.
@@ -38,6 +39,9 @@ export class ChatProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
                 case "askAI": {
+                    sendTelemetryEvent('chat.message.sent', {
+                        messageLength: data.value.length.toString()
+                    });
                     const answer = await this._callAzureAI(data.value);
                     webviewView.webview.postMessage({
                         type: "addResponse",
@@ -46,6 +50,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 case "insertCode": {
+                    sendTelemetryEvent('chat.code.inserted');
                     // Insert code snippet into the active editor
                     const editor = vscode.window.activeTextEditor;
                     if (editor) {
@@ -72,6 +77,11 @@ export class ChatProvider implements vscode.WebviewViewProvider {
      * and (future) images in the chat webview.
      */
     public async processAgentRequest(brief: string, prompts: string[]): Promise<void> {
+        sendTelemetryEvent('agent.results.displayed', {
+            briefLength: brief.length.toString(),
+            promptCount: prompts.length.toString()
+        });
+
         if (!this._view) {
             vscode.window.showWarningMessage(
                 'OCLite Chat panel is not open. Please open it first.',
@@ -102,11 +112,31 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     /* ------------------------------------------------------------------ */
 
     private async _callAzureAI(prompt: string): Promise<string> {
+        const startTime = Date.now();
         try {
             const systemPrompt = "You are OCLite AI, a helpful creative assistant for game developers. Respond concisely and helpfully.";
             const result = await callLLM(prompt, systemPrompt, 60_000);
-            return result ?? "⚠️ No response from AI. Please try again.";
+            
+            const duration = Date.now() - startTime;
+            if (result) {
+                sendTelemetryEvent('chat.llm.success', {
+                    promptLength: prompt.length.toString(),
+                    responseLength: result.length.toString()
+                }, {
+                    duration: duration
+                });
+                return result;
+            } else {
+                sendTelemetryEvent('chat.llm.no_response', undefined, { duration: duration });
+                return "⚠️ No response from AI. Please try again.";
+            }
         } catch (err: any) {
+            const duration = Date.now() - startTime;
+            sendTelemetryEvent('chat.llm.error', {
+                errorMessage: err.message || 'unknown'
+            }, {
+                duration: duration
+            });
             console.error("OCLite ChatProvider error:", err);
             return `⚠️ Error: ${err.message}`;
         }

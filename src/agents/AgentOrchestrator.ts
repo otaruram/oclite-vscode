@@ -10,6 +10,7 @@
 import * as vscode from 'vscode';
 import { ContextAnalyzerAgent } from './ContextAnalyzerAgent';
 import { CreativePromptAgent } from './CreativePromptAgent';
+import { sendTelemetryEvent } from '../services/telemetry';
 
 export interface AgentResult {
     /** The creative brief produced by ContextAnalyzerAgent */
@@ -26,6 +27,12 @@ export class AgentOrchestrator {
      * Returns the generated prompts (empty array on failure).
      */
     public static async run(resourceUri: vscode.Uri): Promise<AgentResult | null> {
+        const startTime = Date.now();
+        sendTelemetryEvent('agent.pipeline.started', {
+            resourceType: resourceUri.scheme,
+            resourcePath: resourceUri.fsPath.split(/[\\\/]/).pop() || 'unknown'
+        });
+
         return vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
@@ -41,6 +48,7 @@ export class AgentOrchestrator {
                 const brief = await ContextAnalyzerAgent.analyze(resourceUri);
 
                 if (!brief) {
+                    sendTelemetryEvent('agent.context.failed');
                     vscode.window.showWarningMessage(
                         'OCLite Agent: Could not extract any context from the selected resource.',
                     );
@@ -55,6 +63,7 @@ export class AgentOrchestrator {
                 const prompts = await CreativePromptAgent.generatePrompts(brief);
 
                 if (prompts.length === 0) {
+                    sendTelemetryEvent('agent.prompts.failed');
                     vscode.window.showWarningMessage(
                         'OCLite Agent: Prompt generation returned no results.',
                     );
@@ -62,6 +71,14 @@ export class AgentOrchestrator {
                 }
 
                 progress.report({ message: `Done — ${prompts.length} prompts ready.` });
+
+                const duration = Date.now() - startTime;
+                sendTelemetryEvent('agent.pipeline.completed', {
+                    promptCount: prompts.length.toString(),
+                    briefLength: brief.length.toString()
+                }, {
+                    duration: duration
+                });
 
                 return { brief, prompts };
             },

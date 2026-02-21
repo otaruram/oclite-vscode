@@ -1,8 +1,8 @@
 {
     "name": "oclite-vscode",
     "displayName": "OCLite Copilot Extension",
-    "description": "Generate game assets and icons directly in VS Code using OCLite AI.",
-    "version": "0.0.4",
+    "description": "AI-powered creative asset generation with Azure cloud integration. Generate game assets, icons, and graphics directly in VS Code using advanced AI models.",
+    "version": "0.1.0",
     "publisher": "oclitesite",
     "repository": {
         "type": "git",
@@ -14,6 +14,17 @@
     "categories": [
         "AI",
         "Chat"
+    ],
+    "keywords": [
+        "AI",
+        "image generation",
+        "game development", 
+        "assets",
+        "creative",
+        "Azure",
+        "cloud",
+        "copilot",
+        "OCLite"
     ],
     "icon": "assets/icon.png",
     "activationEvents": [
@@ -59,6 +70,56 @@
             {
                 "command": "oclite.clearApiKey",
                 "title": "OCLite: Clear API Key"
+            },
+            {
+                "command": "oclite.viewGallery",
+                "title": "OCLite: View My Gallery",
+                "icon": "$(images)"
+            },
+            {
+                "command": "oclite.signInMicrosoft",
+                "title": "OCLite: Sign in with Microsoft",
+                "icon": "$(account)"
+            },
+            {
+                "command": "oclite.signOut",
+                "title": "OCLite: Sign Out",
+                "icon": "$(sign-out)"
+            },
+            {
+                "command": "oclite.configureStorage",
+                "title": "OCLite: Configure Cloud Storage",
+                "icon": "$(cloud)"
+            },
+            {
+                "command": "oclite.rateLimitStatus",
+                "title": "OCLite: View Rate Limit Status",
+                "icon": "$(pulse)"
+            },
+            {
+                "command": "oclite.clearStorageSettings",
+                "title": "OCLite: Clear Storage Settings",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "oclite.shareImage",
+                "title": "OCLite: Share Image Link", 
+                "icon": "$(link)"
+            },
+            {
+                "command": "oclite.configureTelemetry",
+                "title": "OCLite: Configure Telemetry",
+                "icon": "$(graph)"
+            },
+            {
+                "command": "oclite.sharingStats",
+                "title": "OCLite: View Sharing Statistics",
+                "icon": "$(graph)"
+            },
+            {
+                "command": "oclite.copyShareLink",
+                "title": "OCLite: Copy Share Link",
+                "icon": "$(clippy)"
             }
         ],
         "configuration": {
@@ -87,6 +148,28 @@
                         "Photorealistic style"
                     ],
                     "description": "Select the AI model for image generation."
+                },
+                "oclite.blobStorage.connectionString": {
+                    "type": "string",
+                    "description": "Azure Storage Account connection string (encrypted)",
+                    "scope": "application"
+                },
+                "oclite.blobStorage.autoUpload": {
+                    "type": "boolean", 
+                    "default": true,
+                    "description": "Automatically upload generated images to cloud storage"
+                },
+                "oclite.blobStorage.maxImages": {
+                    "type": "number",
+                    "default": 100,
+                    "minimum": 10,
+                    "maximum": 1000,
+                    "description": "Maximum number of images to store in gallery"
+                },
+                "oclite.auth.autoSignIn": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Automatically sign in with Microsoft on extension startup"
                 }
             }
         },
@@ -147,6 +230,8 @@
         "webpack-cli": "^6.0.1"
     },
     "dependencies": {
+        "@azure/storage-blob": "^12.31.0",
+        "@vscode/extension-telemetry": "^1.3.0",
         "@vscode/webview-ui-toolkit": "^1.4.0",
         "axios": "^1.6.0"
     }
