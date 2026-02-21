@@ -39,13 +39,11 @@ const config = {
         minimizer: [
             new TerserPlugin({
                 terserOptions: {
-                    // ── SECURITY: Mangle all variable/function names ──
-                    mangle: {
-                        toplevel: true,         // Mangle top-level names
-                        properties: {
-                            regex: /^_/,        // Mangle _private properties
-                        },
-                    },
+                    // ── SECURITY: Mangle variable names ──
+                    // Default mangle (no toplevel) — webpack's module system
+                    // already makes identifiers meaningless. toplevel: true
+                    // breaks @azure/storage-blob SDK internal method resolution.
+                    mangle: true,
                     compress: {
                         drop_console: false,     // Keep console.log for debugging
                         passes: 2,              // Extra optimization passes

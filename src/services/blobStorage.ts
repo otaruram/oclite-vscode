@@ -12,7 +12,7 @@ import { hashUserId, getUserContainerPath } from './auth';
 import { checkRateLimit, getRateLimitStatus as _getRateLimitStatus } from './rateLimit';
 import { generateShareId, createShareUrl, copyShareUrl, SHARE_BASE_URL } from './sharing';
 import { GalleryImage } from '../types';
-import { getBlobConnectionString } from '../utilities/secrets';
+import { getBlobSasUrl } from '../utilities/secrets';
 
 // Re-export types so existing consumers still work
 export type { GalleryImage } from '../types';
@@ -29,9 +29,9 @@ let _currentUserSession: AuthenticationSession | null = null;
 
 // ── Connection String ──────────────────────────────────────────────────────
 
-function getSecureConnectionString(): string {
+function getSecureSasUrl(): string {
     // Auto-configured from encrypted embedded secret — no user input needed
-    return getBlobConnectionString();
+    return getBlobSasUrl();
 }
 
 // ── Authentication ─────────────────────────────────────────────────────────
@@ -61,16 +61,16 @@ async function authenticateUser(): Promise<AuthenticationSession | null> {
 export async function initializeBlobStorage(): Promise<void> {
     console.log('[OCLite Blob] Initializing...');
 
-    const cs = getSecureConnectionString();
-    if (!cs) { console.log('[OCLite Blob] No connection string — disabled.'); return; }
+    const sasUrl = getSecureSasUrl();
+    if (!sasUrl) { console.log('[OCLite Blob] No SAS URL — disabled.'); return; }
 
     const session = await authenticateUser();
     if (!session) { console.log('[OCLite Blob] No auth — local mode.'); return; }
 
     try {
-        _blobServiceClient = BlobServiceClient.fromConnectionString(cs);
+        _blobServiceClient = new BlobServiceClient(sasUrl);
         _containerClient = _blobServiceClient.getContainerClient(CONTAINER_NAME);
-        await _containerClient.createIfNotExists({ access: 'blob' });
+        await _containerClient.createIfNotExists();
 
         console.log(`[OCLite Blob] Ready — container "${CONTAINER_NAME}" for ${session.account.label}`);
         sendTelemetryEvent('blob.initialized', { userId: hashUserId(session.account.id) });
