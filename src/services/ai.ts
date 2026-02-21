@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { callLLM } from './llm';
+import { getOcliteApiKey } from '../utilities/secrets';
 
 // Category-specific style presets for SDXL optimization
 const CATEGORY_PRESETS: Record<string, string> = {
@@ -23,11 +24,10 @@ export class AIService {
     }
 
     /**
-     * Get OCLite API key from VS Code configuration.
-     * Users must set this via oclite.setApiKey command.
+     * Get OCLite API key (embedded, auto-configured).
      */
     public getApiKey(): string | undefined {
-        return this.config.get<string>('apiKey');
+        return getOcliteApiKey();
     }
 
     /**

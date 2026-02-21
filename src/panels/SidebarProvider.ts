@@ -3,6 +3,7 @@ import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
 import { AIService } from "../services/ai";
 import axios from "axios";
+import { getOcliteApiKey, getOcliteApiUrl, getOclitePollUrl } from '../utilities/secrets';
 
 // Project type definitions for workspace detection
 interface ProjectInfo {
@@ -179,12 +180,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         if (!this._view) return;
 
         const config = vscode.workspace.getConfiguration('oclite');
-        const apiKey = config.get<string>('apiKey');
+        const apiKey = getOcliteApiKey();
 
         if (!apiKey) {
             this.postMessage({ 
                 type: 'error', 
-                value: 'API Key not configured. Please set your OCLite API key in settings.' 
+                value: 'OCLite service unavailable. Please try again later.' 
             });
             return;
         }
@@ -219,7 +220,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             const model = config.get<string>('model') || 'sdxl-lightning';
 
-            const response = await axios.post('https://oclite-api.onrender.com/api/v1/generate', {
+            const response = await axios.post(getOcliteApiUrl(), {
                 model: model,
                 prompt: refinedPrompt,
                 disableSafety: false
@@ -257,7 +258,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         message: `⏳ Rendering... ${progress}%`
                     });
 
-                    const pollUrl = `https://oclite-api.onrender.com/api/predictions/${predictionId}`;
+                    const pollUrl = `${getOclitePollUrl()}${predictionId}`;
                     const pollResponse = await axios.get(pollUrl, { 
                         headers: { 'Authorization': `Bearer ${apiKey}` },
                         timeout: 10000
