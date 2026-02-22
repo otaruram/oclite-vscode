@@ -106,10 +106,12 @@ export class OCLiteChatParticipant {
     ): Promise<string | null> {
         // Retry up to 2 times on 5xx errors
         let response: any;
+        const apiUrl = getOcliteApiUrl();
+        console.log(`[OCLite] POST ${apiUrl} | model=${model} | prompt_len=${prompt.length}`);
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 response = await axios.post(
-                    getOcliteApiUrl(),
+                    apiUrl,
                     { model, prompt, disableSafety: false },
                     {
                         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -120,13 +122,15 @@ export class OCLiteChatParticipant {
                 break; // success
             } catch (err: any) {
                 const status = err.response?.status;
-                console.error(`[OCLite] Generate attempt ${attempt} failed: ${status} ${JSON.stringify(err.response?.data || err.message).substring(0, 200)}`);
+                const errBody = JSON.stringify(err.response?.data || err.message).substring(0, 300);
+                console.error(`[OCLite] Generate attempt ${attempt} failed: HTTP ${status} | ${errBody}`);
                 if (attempt === 2 || !status || status < 500) throw err;
                 stream.progress(`⚠️ Server error (${status}), retrying...`);
                 await new Promise(r => setTimeout(r, 3000));
             }
         }
 
+        console.log(`[OCLite] Response: status=${response.data.status} id=${response.data.id || 'N/A'}`);
         if (response.data.status === 'processing' || response.data.status === 'starting' || response.data.status === 'queued') {
             const predictionId = response.data.id;
             stream.progress(`Creation started with ${model}. Polling for result...`);
