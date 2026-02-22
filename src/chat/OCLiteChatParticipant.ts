@@ -110,7 +110,7 @@ export class OCLiteChatParticipant {
             }
         );
 
-        if (response.data.status === 'processing' || response.data.status === 'starting') {
+        if (response.data.status === 'processing' || response.data.status === 'starting' || response.data.status === 'queued') {
             const predictionId = response.data.id;
             stream.progress(`Creation started with ${model}. Polling for result...`);
             for (let i = 0; i < 30; i++) {

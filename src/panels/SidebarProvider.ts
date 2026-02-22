@@ -236,7 +236,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             let imageUrl = '';
             if (response.data.status === 'succeeded' && response.data.output?.length > 0) {
                 imageUrl = response.data.output[0];
-            } else if (response.data.status === 'processing' || response.data.status === 'starting') {
+            } else if (response.data.status === 'processing' || response.data.status === 'starting' || response.data.status === 'queued') {
                 const predictionId = response.data.id;
                 
                 this.postMessage({ 
