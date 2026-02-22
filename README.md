@@ -145,18 +145,15 @@ Automatically detects the project type and suggests the best asset style:
 - Install from [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
 - Or install manually: `code --install-extension oclite-vscode-x.x.x.vsix`
 
-### 2. Basic Setup (Required)
-1. **Set API Key**: Run `OCLite: Set API Key` command to configure your OCLite API key
-2. **Start Creating**: Use any of the generation methods below
 
-### 3. Optional Cloud Features (Not Required)
+### 2. Optional Cloud Features (Not Required)
 > **Note**: Basic image generation works perfectly without cloud setup!
 
 - **Microsoft Authentication**: Run `OCLite: Sign in with Microsoft` for cloud storage access  
 - **Azure Blob Storage**: Run `OCLite: Configure Cloud Storage` to enable image sharing
 - **Usage Analytics**: Run `OCLite: Configure Telemetry` to set up Application Insights (optional)
 
-### 4. Generation Methods
+### 3. Generation Methods
 - **Chat:** Type `@oclite <your prompt>` in Copilot Chat
 - **Sidebar:** Select the OCLite icon in the Activity Bar and enter a prompt  
 - **Agent:** Right-click a file or folder → **OCLite: Analyze & Generate Assets**
