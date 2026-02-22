@@ -81,8 +81,11 @@ export class OCLiteChatParticipant {
                     // Upload to ImageKit + Blob, show share link
                     await this.tryCloudUpload(localPath, prompt, model, stream);
                 } catch (error: any) {
-                    const msg = error.response?.data?.detail || error.message || 'Unknown error';
-                    stream.markdown(`❌ **Generation Failed**\n\n**Reason:** ${msg}`);
+                    const detail = error.response?.data?.detail || error.response?.data?.error || error.response?.data?.message;
+                    const status = error.response?.status ? ` (HTTP ${error.response.status})` : '';
+                    const msg = detail || error.message || 'Unknown error';
+                    console.error(`[OCLite] Generation error${status}:`, JSON.stringify(error.response?.data || error.message).substring(0, 300));
+                    stream.markdown(`❌ **Generation Failed**\n\n**Reason:** ${msg}${status}`);
                 }
 
                 return { metadata: { command: '' } };
@@ -101,14 +104,28 @@ export class OCLiteChatParticipant {
         stream: vscode.ChatResponseStream,
         token: vscode.CancellationToken
     ): Promise<string | null> {
-        const response = await axios.post(
-            getOcliteApiUrl(),
-            { model, prompt, disableSafety: false },
-            {
-                headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                cancelToken: new axios.CancelToken((c) => token.onCancellationRequested(() => c())),
+        // Retry up to 2 times on 5xx errors
+        let response: any;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                response = await axios.post(
+                    getOcliteApiUrl(),
+                    { model, prompt, disableSafety: false },
+                    {
+                        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                        timeout: 30000,
+                        cancelToken: new axios.CancelToken((c) => token.onCancellationRequested(() => c())),
+                    }
+                );
+                break; // success
+            } catch (err: any) {
+                const status = err.response?.status;
+                console.error(`[OCLite] Generate attempt ${attempt} failed: ${status} ${JSON.stringify(err.response?.data || err.message).substring(0, 200)}`);
+                if (attempt === 2 || !status || status < 500) throw err;
+                stream.progress(`⚠️ Server error (${status}), retrying...`);
+                await new Promise(r => setTimeout(r, 3000));
             }
-        );
+        }
 
         if (response.data.status === 'processing' || response.data.status === 'starting' || response.data.status === 'queued') {
             const predictionId = response.data.id;

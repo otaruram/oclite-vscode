@@ -220,17 +220,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             const model = config.get<string>('model') || 'sdxl-lightning';
 
-            const response = await axios.post(getOcliteApiUrl(), {
-                model: model,
-                prompt: refinedPrompt,
-                disableSafety: false
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 30000
-            });
+            // Retry up to 2 times on 5xx errors
+            let response: any;
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    response = await axios.post(getOcliteApiUrl(), {
+                        model: model,
+                        prompt: refinedPrompt,
+                        disableSafety: false
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: 30000
+                    });
+                    break;
+                } catch (err: any) {
+                    const status = err.response?.status;
+                    console.error(`[OCLite] Generate attempt ${attempt} failed: ${status}`);
+                    if (attempt === 2 || !status || status < 500) throw err;
+                    this.postMessage({ type: 'status', value: `⚠️ Server error (${status}), retrying...` });
+                    await new Promise(r => setTimeout(r, 3000));
+                }
+            }
 
             // Step 3: Polling for Result
             let imageUrl = '';
