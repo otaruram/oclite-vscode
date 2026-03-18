@@ -104,17 +104,15 @@ export class ChatProvider implements vscode.WebviewViewProvider {
                     });
                     break;
                 }
-                case "generateTests": {
-                    sendTelemetryEvent('chat.tests.generation.triggered');
-                    const tests = await this._generateTests(data.value);
-                    webviewView.webview.postMessage({
-                        type: "addResponse",
-                        value: tests,
-                    });
-                    break;
-                }
                 case "brainstormIdeas": {
                     sendTelemetryEvent('chat.brainstorm.triggered');
+                    
+                    // Show enhanced loading message
+                    webviewView.webview.postMessage({
+                        type: "addResponse",
+                        value: "🚀 **Brainstorming creative ideas...**\n\n💡 Generating innovative concepts...\n🎯 Exploring different approaches...\n✨ Crafting unique solutions...\n🔥 Preparing creative recommendations...",
+                    });
+                    
                     const ideas = await this._brainstormIdeas(data.value);
                     webviewView.webview.postMessage({
                         type: "addResponse",
@@ -268,16 +266,6 @@ Focus on practical, actionable improvements that make real impact.`;
         }
     }
 
-    private async _generateTests(code: string): Promise<string> {
-        try {
-            const systemPrompt = "You are a testing expert. Generate comprehensive unit tests for this code. Include: 1) Happy path tests 2) Edge cases 3) Error handling 4) Mock data. Use appropriate testing framework.";
-            const result = await callLLM(`Generate tests for:\n\`\`\`\n${code}\n\`\`\``, systemPrompt, 60_000, undefined, 'ocliteGenerator');
-            return result || "⚠️ Failed to generate tests.";
-        } catch (err: any) {
-            return `⚠️ Error: ${err.message}`;
-        }
-    }
-
     // Helper methods for code analysis
     private _detectLanguage(code: string): string {
         // Simple language detection based on syntax patterns
@@ -319,12 +307,70 @@ Focus on practical, actionable improvements that make real impact.`;
 
     private async _brainstormIdeas(topic: string): Promise<string> {
         try {
-            const systemPrompt = "You are a creative brainstorming assistant. Generate 10 innovative ideas related to the topic. Be creative, practical, and diverse in your suggestions. Format as a numbered list with brief descriptions.";
-            const result = await callLLM(`Brainstorm ideas for: ${topic}`, systemPrompt, 60_000, undefined, 'ocliteGenerator');
-            return result || "⚠️ Failed to brainstorm ideas.";
+            // Analyze the topic for better context
+            const topicType = this._analyzeTopicType(topic);
+            const complexity = topic.length > 100 ? 'Complex' : topic.length > 50 ? 'Moderate' : 'Simple';
+            
+            const systemPrompt = `You are a creative innovation consultant and brainstorming expert. Generate comprehensive and actionable ideas:
+
+## 🎯 Brainstorming Session
+- **Topic**: ${topic}
+- **Type**: ${topicType}
+- **Scope**: ${complexity} exploration
+- **Goal**: Generate diverse, practical, and innovative solutions
+
+## 💡 Creative Ideas Framework
+Provide 10 unique ideas organized by categories:
+
+### 🚀 **Innovative Approaches**
+- **Cutting-edge solutions**: Modern, tech-forward ideas
+- **Disruptive concepts**: Game-changing approaches
+- **Future-oriented**: Forward-thinking possibilities
+
+### 🎨 **Creative Solutions**
+- **Artistic approaches**: Design-focused ideas
+- **User experience**: Human-centered solutions
+- **Aesthetic innovations**: Visually appealing concepts
+
+### 🔧 **Practical Implementations**
+- **Quick wins**: Easy-to-implement ideas
+- **Resource-efficient**: Cost-effective solutions
+- **Scalable options**: Growth-oriented approaches
+
+### 🌟 **Unique Perspectives**
+- **Unconventional angles**: Out-of-the-box thinking
+- **Cross-industry inspiration**: Ideas from other domains
+- **Experimental concepts**: Bold, experimental approaches
+
+## 📋 Implementation Guide
+For each idea, provide:
+- **Core concept**: What it is
+- **Why it works**: The reasoning behind it
+- **Next steps**: How to get started
+- **Potential impact**: Expected outcomes
+
+Focus on actionable, diverse, and inspiring ideas that spark creativity and provide real value.`;
+
+            const result = await callLLM(`Brainstorm creative ideas for: ${topic}`, systemPrompt, 60_000, undefined, 'ocliteGenerator');
+            return result || "⚠️ Failed to generate ideas. Please try again with a different topic.";
         } catch (err: any) {
-            return `⚠️ Error: ${err.message}`;
+            return `⚠️ Error brainstorming ideas: ${err.message}`;
         }
+    }
+
+    // Helper method for topic analysis
+    private _analyzeTopicType(topic: string): string {
+        const lowerTopic = topic.toLowerCase();
+        
+        if (lowerTopic.includes('app') || lowerTopic.includes('software') || lowerTopic.includes('code')) return 'Software Development';
+        if (lowerTopic.includes('business') || lowerTopic.includes('startup') || lowerTopic.includes('company')) return 'Business Strategy';
+        if (lowerTopic.includes('design') || lowerTopic.includes('ui') || lowerTopic.includes('ux')) return 'Design & UX';
+        if (lowerTopic.includes('marketing') || lowerTopic.includes('promotion') || lowerTopic.includes('brand')) return 'Marketing & Branding';
+        if (lowerTopic.includes('product') || lowerTopic.includes('feature') || lowerTopic.includes('service')) return 'Product Development';
+        if (lowerTopic.includes('problem') || lowerTopic.includes('solution') || lowerTopic.includes('challenge')) return 'Problem Solving';
+        if (lowerTopic.includes('content') || lowerTopic.includes('blog') || lowerTopic.includes('article')) return 'Content Creation';
+        
+        return 'General Innovation';
     }
 
     /* ------------------------------------------------------------------ */
@@ -711,13 +757,11 @@ Focus on practical, actionable improvements that make real impact.`;
                     <span class="btn-text">Improve Code</span>
                     <span class="btn-desc">Optimize & enhance</span>
                 </button>
-                <button class="quick-btn enhanced-btn" data-action="tests" title="Generate unit tests for your code">
-                    <span class="btn-icon">🧪</span>
-                    <span class="btn-text">Generate Tests</span>
-                    <span class="btn-desc">Create test cases</span>
+                <button class="quick-btn enhanced-btn" data-action="brainstorm" title="Generate creative ideas and solutions">
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">Brainstorm Ideas</span>
+                    <span class="btn-desc">Creative solutions</span>
                 </button>
-                <button class="quick-btn" data-action="image">🎨 Generate Image</button>
-                <button class="quick-btn" data-action="brainstorm">🚀 Brainstorm Ideas</button>
             </div>
         </div>
     </div>
@@ -985,16 +1029,8 @@ Focus on practical, actionable improvements that make real impact.`;
                     promptEl.value = '⚡ Review and improve the code in my active editor with optimization suggestions';
                     promptEl.focus();
                     break;
-                case 'tests':
-                    promptEl.value = '🧪 Generate comprehensive unit tests for the code in my active editor';
-                    promptEl.focus();
-                    break;
-                case 'image':
-                    promptEl.value = '🎨 Generate an image of ';
-                    promptEl.focus();
-                    break;
                 case 'brainstorm':
-                    promptEl.value = '🚀 Brainstorm 10 creative ideas for ';
+                    promptEl.value = '🚀 Brainstorm 10 creative ideas and innovative solutions for ';
                     promptEl.focus();
                     break;
             }
