@@ -1,0 +1,82 @@
+node_modules
+out
+dist
+.vscode-test
+*.vsix
+
+# Environment files with secrets
+.env
+.env.*
+.env.local
+.env.*.local
+
+# LLM gateway with real keys (use llm.ts.example as template)
+src/services/llm.ts
+
+# Secrets module (XOR-encoded API keys, connection strings — NEVER push)
+src/utilities/secrets.ts
+
+# Any file with XOR key arrays or connection strings
+src/services/gemini.ts
+src/services/rateLimit.ts
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor settings (may contain tokens)
+.vscode/settings.json
+
+# Build artifacts and logs
+*.log
+npm-debug.log*
+
+# SECURITY: Block all potentially dangerous files
+# Azure Function files and deployment configs
+azure-function-files/
+azure-function-deploy.zip
+*.deployment
+deploy.cmd
+local.settings.json
+
+# Test and debug files (may contain API keys)
+test-*.js
+debug-*.js
+*test*.js
+*debug*.js
+
+# Any file with API keys, secrets, or tokens
+*secret*
+*SECRET*
+*key*
+*KEY*
+*token*
+*TOKEN*
+*api*key*
+*API*KEY*
+
+# Replicate references (hide from public repo)
+*replicate*
+*REPLICATE*
+
+# Security documentation
+SECURITY-*.md
+*SECURITY*.md
+
+# Junk / summary docs
+CHANGES_SUMMARY.md
+CHATPROVIDER_UPGRADE.md
+FEATURE_IDEAS.md
+FINAL_FIXES.md
+NEW_FEATURES.md
+QUICK_START_GUIDE.md
+SIMPLE_FLOW_GUIDE.md
+UPGRADE_SUMMARY.md
+ARCHITECTURE.md
+remove-bg.js
+logo-small.png
+
+# Any file containing function codes or URLs
+*code=*
+*azurewebsites*
+*azure*function*

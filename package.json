@@ -1,0 +1,257 @@
+{
+    "name": "oclite-vscode",
+    "displayName": "OCLite Copilot Extension",
+    "description": "AI-powered creative asset generation with Azure cloud integration. Generate game assets, icons, and graphics directly in VS Code using advanced AI models.",
+    "version": "0.1.41",
+    "publisher": "oclitesite",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/otaruram/oclite-vscode.git"
+    },
+    "engines": {
+        "vscode": "^1.90.0"
+    },
+    "categories": [
+        "AI",
+        "Chat"
+    ],
+    "keywords": [
+        "AI",
+        "image generation",
+        "game development",
+        "assets",
+        "creative",
+        "Azure",
+        "cloud",
+        "copilot",
+        "OCLite"
+    ],
+    "icon": "assets/icon.png",
+    "activationEvents": [
+        "onChatParticipant:oclite.chat",
+        "onView:oclite.sidebarView"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "chatParticipants": [
+            {
+                "id": "oclite.chat",
+                "name": "oclite",
+                "fullName": "OCLite Asset Generator",
+                "description": "Generate creative assets using OCLite AI backend.",
+                "isSticky": true
+            }
+        ],
+        "commands": [
+            {
+                "command": "oclite.setApiKey",
+                "title": "OCLite: Set API Key"
+            },
+            {
+                "command": "oclite-vscode.analyzeAndGenerate",
+                "title": "OCLite: Analyze & Generate Assets"
+            },
+            {
+                "command": "oclite.saveImage",
+                "title": "OCLite: Save Image to Workspace",
+                "icon": "$(save)"
+            },
+            {
+                "command": "oclite.saveImageFromUrl",
+                "title": "OCLite: Save Image from URL",
+                "icon": "$(cloud-download)"
+            },
+            {
+                "command": "oclite.previewImage",
+                "title": "OCLite: Preview Generated Image",
+                "icon": "$(eye)"
+            },
+            {
+                "command": "oclite.clearApiKey",
+                "title": "OCLite: Clear API Key"
+            },
+            {
+                "command": "oclite.viewGallery",
+                "title": "OCLite: View My Gallery",
+                "icon": "$(images)"
+            },
+            {
+                "command": "oclite.signInMicrosoft",
+                "title": "OCLite: Sign in with Microsoft",
+                "icon": "$(account)"
+            },
+            {
+                "command": "oclite.signOut",
+                "title": "OCLite: Sign Out",
+                "icon": "$(sign-out)"
+            },
+            {
+                "command": "oclite.configureStorage",
+                "title": "OCLite: Configure Cloud Storage",
+                "icon": "$(cloud)"
+            },
+            {
+                "command": "oclite.rateLimitStatus",
+                "title": "OCLite: View Rate Limit Status",
+                "icon": "$(pulse)"
+            },
+            {
+                "command": "oclite.clearStorageSettings",
+                "title": "OCLite: Clear Storage Settings",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "oclite.shareImage",
+                "title": "OCLite: Share Image Link",
+                "icon": "$(link)"
+            },
+            {
+                "command": "oclite.configureTelemetry",
+                "title": "OCLite: Configure Telemetry",
+                "icon": "$(graph)"
+            },
+            {
+                "command": "oclite.sharingStats",
+                "title": "OCLite: View Cloud Storage Stats",
+                "icon": "$(graph)"
+            },
+            {
+                "command": "oclite.setBackground",
+                "title": "OCLite: Set Image as Editor Background"
+            },
+            {
+                "command": "oclite.removeBackground",
+                "title": "OCLite: Remove Custom Editor Background"
+            },
+            {
+                "command": "oclite.copyShareLink",
+                "title": "OCLite: Copy Share Link",
+                "icon": "$(clippy)"
+            },
+            {
+                "command": "oclite.diagnostics",
+                "title": "OCLite: Run Diagnostics",
+                "icon": "$(beaker)"
+            },
+            {
+                "command": "oclite.openCanvas",
+                "title": "OCLite: Open Canvas",
+                "icon": "$(symbol-color)"
+            }
+        ],
+        "configuration": {
+            "title": "OCLite",
+            "properties": {
+                "oclite.model": {
+                    "type": "string",
+                    "default": "sdxl-lightning",
+                    "enum": [
+                        "sdxl-lightning",
+                        "flux-schnell",
+                        "flux-dev",
+                        "animagine-xl",
+                        "realistic-vision"
+                    ],
+                    "enumDescriptions": [
+                        "Fastest generation (Default)",
+                        "High quality fast",
+                        "High quality standard",
+                        "Anime style specialized",
+                        "Photorealistic style"
+                    ],
+                    "description": "Select the AI model for image generation."
+                },
+                "oclite.blobStorage.autoUpload": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically upload generated images to cloud storage"
+                },
+                "oclite.blobStorage.maxImages": {
+                    "type": "number",
+                    "default": 100,
+                    "minimum": 10,
+                    "maximum": 1000,
+                    "description": "Maximum number of images to store in gallery"
+                },
+                "oclite.auth.autoSignIn": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Automatically sign in with Microsoft on extension startup"
+                },
+                "oclite.geminiApiKey": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Google Gemini API key for UI-to-code generation (get from https://aistudio.google.com/app/apikey)"
+                }
+            }
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "oclite-sidebar",
+                    "title": "OCLite",
+                    "icon": "assets/icon-dark.svg"
+                }
+            ]
+        },
+        "menus": {
+            "explorer/context": [
+                {
+                    "when": "resourceLangId",
+                    "command": "oclite-vscode.analyzeAndGenerate",
+                    "group": "navigation"
+                }
+            ]
+        },
+        "views": {
+            "oclite-sidebar": [
+                {
+                    "type": "webview",
+                    "id": "oclite.sidebarView",
+                    "name": "OCLite Generator",
+                    "icon": "assets/icon.svg"
+                },
+                {
+                    "type": "webview",
+                    "id": "oclite.chatView",
+                    "name": "Chat with OCLite",
+                    "icon": "assets/icon.svg"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run package",
+        "compile": "webpack --mode development",
+        "watch": "webpack --mode development --watch",
+        "package": "webpack --mode production",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/node": "20.x",
+        "@types/vscode": "^1.90.0",
+        "@typescript-eslint/eslint-plugin": "^7.0.0",
+        "@typescript-eslint/parser": "^7.0.0",
+        "copy-webpack-plugin": "^14.0.0",
+        "eslint": "^8.56.0",
+        "terser-webpack-plugin": "^5.3.16",
+        "ts-loader": "^9.5.4",
+        "typescript": "^5.3.0",
+        "webpack": "^5.105.2",
+        "webpack-cli": "^6.0.1"
+    },
+    "dependencies": {
+        "@azure/storage-blob": "^12.31.0",
+        "@vscode/extension-telemetry": "^1.3.0",
+        "@vscode/webview-ui-toolkit": "^1.4.0",
+        "axios": "^1.6.0",
+        "is-electron": "^2.2.2",
+        "mammoth": "^1.12.0",
+        "pdf-parse": "^1.1.4",
+        "pg": "^8.20.0",
+        "replicate": "^1.4.0",
+        "win-ca": "^3.5.1"
+    }
+}
