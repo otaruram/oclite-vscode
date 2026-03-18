@@ -74,6 +74,13 @@ export class ChatProvider implements vscode.WebviewViewProvider {
                 }
                 case "explainCode": {
                     sendTelemetryEvent('chat.code.explain.triggered');
+                    
+                    // Show enhanced loading message
+                    webviewView.webview.postMessage({
+                        type: "addResponse",
+                        value: "🧠 **Analyzing your code...**\n\n🔍 Detecting language and complexity...\n📋 Preparing detailed explanation...\n💡 Gathering insights and best practices...",
+                    });
+                    
                     const explanation = await this._explainCode(data.value);
                     webviewView.webview.postMessage({
                         type: "addResponse",
@@ -83,6 +90,13 @@ export class ChatProvider implements vscode.WebviewViewProvider {
                 }
                 case "improveCode": {
                     sendTelemetryEvent('chat.code.improve.triggered');
+                    
+                    // Show enhanced loading message
+                    webviewView.webview.postMessage({
+                        type: "addResponse",
+                        value: "⚡ **Reviewing your code...**\n\n🔍 Analyzing performance opportunities...\n📖 Checking readability and maintainability...\n🛡️ Scanning for security and best practices...\n🔧 Preparing optimized version...",
+                    });
+                    
                     const improved = await this._improveCode(data.value);
                     webviewView.webview.postMessage({
                         type: "addResponse",
@@ -165,21 +179,92 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 
     private async _explainCode(code: string): Promise<string> {
         try {
-            const systemPrompt = "You are an expert code explainer. Analyze the code and provide: 1) What it does 2) How it works 3) Key concepts 4) Potential improvements. Be clear and educational.";
-            const result = await callLLM(`Explain this code:\n\`\`\`\n${code}\n\`\`\``, systemPrompt, 60_000, undefined, 'ocliteGenerator');
-            return result || "⚠️ Failed to explain code.";
+            // Detect programming language
+            const language = this._detectLanguage(code);
+            const complexity = this._analyzeComplexity(code);
+            
+            const systemPrompt = `You are an expert ${language} developer and code educator. Provide a comprehensive code explanation with:
+
+## 📋 Code Overview
+- **Purpose**: What this code accomplishes
+- **Language**: ${language} (${complexity} complexity)
+- **Type**: Function/Class/Module/Script
+
+## 🔍 Detailed Analysis
+1. **Core Logic**: Step-by-step breakdown of what happens
+2. **Key Concepts**: Important programming concepts used
+3. **Data Flow**: How data moves through the code
+4. **Dependencies**: External libraries or modules used
+
+## 💡 Learning Points
+- **Best Practices**: What's done well
+- **Patterns**: Design patterns or architectural concepts
+- **Performance**: Efficiency considerations
+
+## 🚀 Potential Enhancements
+- **Improvements**: Specific suggestions for better code
+- **Alternatives**: Different approaches to consider
+- **Next Steps**: How to extend or modify this code
+
+Format your response with clear sections, use code examples where helpful, and explain technical terms for better understanding.`;
+
+            const result = await callLLM(`Analyze and explain this ${language} code:\n\`\`\`${language}\n${code}\n\`\`\``, systemPrompt, 60_000, undefined, 'ocliteGenerator');
+            return result || "⚠️ Failed to explain code. Please try again.";
         } catch (err: any) {
-            return `⚠️ Error: ${err.message}`;
+            return `⚠️ Error analyzing code: ${err.message}`;
         }
     }
 
     private async _improveCode(code: string): Promise<string> {
         try {
-            const systemPrompt = "You are a senior software engineer. Review this code and suggest improvements for: 1) Performance 2) Readability 3) Best practices 4) Security. Provide the improved code with explanations.";
-            const result = await callLLM(`Improve this code:\n\`\`\`\n${code}\n\`\`\``, systemPrompt, 60_000, undefined, 'ocliteGenerator');
-            return result || "⚠️ Failed to improve code.";
+            // Detect programming language and analyze context
+            const language = this._detectLanguage(code);
+            const codeType = this._analyzeCodeType(code);
+            const complexity = this._analyzeComplexity(code);
+            
+            const systemPrompt = `You are a senior ${language} architect and code reviewer. Provide a comprehensive code improvement analysis:
+
+## 🔍 Code Review Summary
+- **Language**: ${language}
+- **Type**: ${codeType}
+- **Complexity**: ${complexity}
+- **Current State**: Brief assessment
+
+## ⚡ Performance Improvements
+- **Optimization opportunities**: Specific performance enhancements
+- **Memory usage**: Reduce memory footprint
+- **Algorithm efficiency**: Better algorithms or data structures
+- **Async/concurrency**: Improve parallel processing where applicable
+
+## 📖 Readability & Maintainability
+- **Code structure**: Better organization and modularity
+- **Naming conventions**: Clearer variable and function names
+- **Comments & documentation**: Essential documentation needs
+- **Code simplification**: Remove complexity where possible
+
+## 🛡️ Security & Best Practices
+- **Security vulnerabilities**: Potential security issues
+- **Error handling**: Robust error management
+- **Input validation**: Proper data validation
+- **${language} best practices**: Language-specific recommendations
+
+## 🔧 Refactored Code
+Provide the improved version with:
+- **Clean implementation**: Optimized and readable code
+- **Inline comments**: Explain key improvements
+- **Breaking changes**: Note any API changes
+
+## 📋 Implementation Guide
+- **Migration steps**: How to apply these changes
+- **Testing considerations**: What to test after changes
+- **Potential risks**: Things to watch out for
+
+Focus on practical, actionable improvements that make real impact.`;
+
+            const result = await callLLM(`Review and improve this ${language} code:\n\`\`\`${language}\n${code}\n\`\`\``, systemPrompt, 60_000, undefined, 'ocliteGenerator');
+            return result || "⚠️ Failed to improve code. Please try again.";
         } catch (err: any) {
-            return `⚠️ Error: ${err.message}`;
+            return `⚠️ Error improving code: ${err.message}`;
         }
     }
 
@@ -191,6 +276,45 @@ export class ChatProvider implements vscode.WebviewViewProvider {
         } catch (err: any) {
             return `⚠️ Error: ${err.message}`;
         }
+    }
+
+    // Helper methods for code analysis
+    private _detectLanguage(code: string): string {
+        // Simple language detection based on syntax patterns
+        if (code.includes('function') && code.includes('=>')) return 'JavaScript/TypeScript';
+        if (code.includes('def ') && code.includes(':')) return 'Python';
+        if (code.includes('public class') || code.includes('private ')) return 'Java';
+        if (code.includes('#include') || code.includes('int main')) return 'C/C++';
+        if (code.includes('fn ') && code.includes('->')) return 'Rust';
+        if (code.includes('func ') && code.includes('package')) return 'Go';
+        if (code.includes('<?php')) return 'PHP';
+        if (code.includes('using System') || code.includes('namespace')) return 'C#';
+        if (code.includes('<html>') || code.includes('<div>')) return 'HTML';
+        if (code.includes('SELECT') || code.includes('FROM')) return 'SQL';
+        if (code.includes('.css') || code.includes('{') && code.includes('}')) return 'CSS';
+        return 'Unknown';
+    }
+
+    private _analyzeComplexity(code: string): string {
+        const lines = code.split('\n').length;
+        const functions = (code.match(/function|def |fn |func /g) || []).length;
+        const loops = (code.match(/for|while|forEach/g) || []).length;
+        const conditions = (code.match(/if|switch|case/g) || []).length;
+        
+        const complexity = functions + loops * 2 + conditions;
+        
+        if (lines < 20 && complexity < 5) return 'Simple';
+        if (lines < 100 && complexity < 15) return 'Moderate';
+        return 'Complex';
+    }
+
+    private _analyzeCodeType(code: string): string {
+        if (code.includes('class ')) return 'Class Definition';
+        if (code.includes('function') || code.includes('def ') || code.includes('fn ')) return 'Function/Method';
+        if (code.includes('interface') || code.includes('type ')) return 'Type Definition';
+        if (code.includes('import') || code.includes('require')) return 'Module/Import';
+        if (code.includes('const') || code.includes('let') || code.includes('var')) return 'Variable Declaration';
+        return 'Code Block';
     }
 
     private async _brainstormIdeas(topic: string): Promise<string> {
@@ -511,6 +635,56 @@ export class ChatProvider implements vscode.WebviewViewProvider {
             background: var(--vscode-button-secondaryHoverBackground);
             transform: translateY(-1px);
         }
+        .enhanced-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 16px;
+            min-width: 120px;
+            background: linear-gradient(135deg, var(--vscode-button-secondaryBackground), var(--vscode-editor-inactiveSelectionBackground));
+            border: 1px solid var(--vscode-focusBorder);
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .enhanced-btn:hover {
+            background: linear-gradient(135deg, var(--vscode-button-secondaryHoverBackground), var(--vscode-list-hoverBackground));
+            border-color: var(--vscode-button-foreground);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .enhanced-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        .enhanced-btn.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: loading-shimmer 1.5s infinite;
+        }
+        @keyframes loading-shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        .btn-icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+        .btn-text {
+            font-weight: 600;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+        .btn-desc {
+            font-size: 9px;
+            opacity: 0.8;
+            text-align: center;
+            line-height: 1.2;
+        }
     </style>
 </head>
 <body>
@@ -526,10 +700,22 @@ export class ChatProvider implements vscode.WebviewViewProvider {
             <div class="icon">💬</div>
             <strong>Chat with OCLite AI</strong>
             <p>Ask anything — code help, prompt ideas, or just say hi!</p>
-            <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
-                <button class="quick-btn" data-action="explain">💡 Explain Code</button>
-                <button class="quick-btn" data-action="improve">⚡ Improve Code</button>
-                <button class="quick-btn" data-action="tests">🧪 Generate Tests</button>
+            <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                <button class="quick-btn enhanced-btn" data-action="explain" title="Get detailed explanation of your code">
+                    <span class="btn-icon">🧠</span>
+                    <span class="btn-text">Explain Code</span>
+                    <span class="btn-desc">Understand how it works</span>
+                </button>
+                <button class="quick-btn enhanced-btn" data-action="improve" title="Get suggestions to improve your code">
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-text">Improve Code</span>
+                    <span class="btn-desc">Optimize & enhance</span>
+                </button>
+                <button class="quick-btn enhanced-btn" data-action="tests" title="Generate unit tests for your code">
+                    <span class="btn-icon">🧪</span>
+                    <span class="btn-text">Generate Tests</span>
+                    <span class="btn-desc">Create test cases</span>
+                </button>
                 <button class="quick-btn" data-action="image">🎨 Generate Image</button>
                 <button class="quick-btn" data-action="brainstorm">🚀 Brainstorm Ideas</button>
             </div>
@@ -783,25 +969,32 @@ export class ChatProvider implements vscode.WebviewViewProvider {
         /* ---------- Quick Actions ---------- */
         
         function handleQuickAction(action) {
+            // Add loading state to enhanced buttons
+            const button = document.querySelector('[data-action="' + action + '"]');
+            if (button && button.classList.contains('enhanced-btn')) {
+                button.classList.add('loading');
+                setTimeout(() => button.classList.remove('loading'), 3000); // Remove after 3s
+            }
+            
             switch(action) {
                 case 'explain':
-                    promptEl.value = 'Explain the code in my active editor';
+                    promptEl.value = '🧠 Analyze and explain the code in my active editor with detailed breakdown';
                     promptEl.focus();
                     break;
                 case 'improve':
-                    promptEl.value = 'Review and improve the code in my active editor';
+                    promptEl.value = '⚡ Review and improve the code in my active editor with optimization suggestions';
                     promptEl.focus();
                     break;
                 case 'tests':
-                    promptEl.value = 'Generate unit tests for the code in my active editor';
+                    promptEl.value = '🧪 Generate comprehensive unit tests for the code in my active editor';
                     promptEl.focus();
                     break;
                 case 'image':
-                    promptEl.value = 'Generate an image of ';
+                    promptEl.value = '🎨 Generate an image of ';
                     promptEl.focus();
                     break;
                 case 'brainstorm':
-                    promptEl.value = 'Brainstorm 10 creative ideas for ';
+                    promptEl.value = '🚀 Brainstorm 10 creative ideas for ';
                     promptEl.focus();
                     break;
             }
