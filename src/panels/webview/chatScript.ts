@@ -50,9 +50,7 @@ export function getChatScript(): string {
             post({ type: 'exportHistory' });
         });
         document.getElementById('clearHistoryBtn').addEventListener('click', function() {
-            if (confirm('Hapus semua riwayat chat? Tindakan ini tidak dapat dibatalkan.')) {
-                post({ type: 'clearHistory' });
-            }
+            post({ type: 'clearHistory' });
         });
 
         // ── History helpers ──────────────────────────────────────────────
@@ -67,7 +65,7 @@ export function getChatScript(): string {
                 e.stopPropagation();
                 e.preventDefault();
                 var sessionId = delBtn.getAttribute('data-session-id');
-                if (sessionId && confirm('Hapus session ini?')) {
+                if (sessionId) {
                     post({ type: 'deleteSession', sessionId: sessionId });
                 }
                 return;

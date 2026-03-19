@@ -2,7 +2,7 @@
     "name": "oclite-vscode",
     "displayName": "OCLite Copilot Extension",
     "description": "AI-powered creative asset generation with Azure cloud integration. Generate game assets, icons, and graphics directly in VS Code using advanced AI models.",
-    "version": "0.1.49",
+    "version": "0.1.50",
     "publisher": "oclitesite",
     "repository": {
         "type": "git",
@@ -122,6 +122,11 @@
             {
                 "command": "oclite.removeBackground",
                 "title": "OCLite: Remove Custom Editor Background"
+            },
+            {
+                "command": "oclite.removeTheme",
+                "title": "OCLite: Reset OCLite Theme",
+                "icon": "$(symbol-color)"
             },
             {
                 "command": "oclite.copyShareLink",

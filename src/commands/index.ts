@@ -21,7 +21,7 @@ import { signInMicrosoft } from '../services/auth';
 import { createGalleryHtml } from '../ui/galleryHtml';
 import { getSecureImageUrl } from '../services/secureUrlService';
 
-import { setVsCodeBackground, removeVsCodeBackground } from '../services/backgroundInjector';
+import { setVsCodeBackground, removeVsCodeBackground, applyThemeFromImage, removeOcliteTheme } from '../services/backgroundInjector';
 
 /**
  * Register every non-chat command and push into context.subscriptions.
@@ -158,7 +158,6 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                         else if (msg && msg.type === 'deleteImage' && msg.blobName) {
                             const idx = msg.idx;
                             try {
-                                // Delete from Blob Storage only
                                 const success = await deleteGalleryImage(msg.blobName);
                                 panel.webview.postMessage({ type: 'deleteResult', success, idx });
                                 if (success) {
@@ -173,10 +172,13 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                                 vscode.window.showErrorMessage(`Failed to delete image: ${errorMsg}`);
                             }
                         }
-                        if (msg && msg.type === 'setBackground' && msg.imageUrl) {
-                            console.log(`[OCLite] Setting background: ${msg.imageUrl}`);
-                            await setVsCodeBackground(msg.imageUrl);
-                            sendTelemetryEvent('command.setBackground.triggered', { source: 'gallery' });
+                        else if (msg && msg.type === 'setTheme') {
+                            await applyThemeFromImage(msg.imageUrl || '', context);
+                            sendTelemetryEvent('command.applyTheme.triggered', { source: 'gallery' });
+                        }
+                        else if (msg && msg.type === 'removeTheme') {
+                            await removeOcliteTheme(context);
+                            sendTelemetryEvent('command.removeTheme.triggered', { source: 'gallery' });
                         }
                     });
                     sendTelemetryEvent('command.viewGallery.opened', { imageCount: images.length.toString() });
@@ -273,15 +275,13 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
         })
     );
 
-    // ── Background Injection ───────────────────────────────────────────────────
+    // ── Theme / Background ─────────────────────────────────────────────────────
     push(
         vscode.commands.registerCommand('oclite.removeBackground', async () => {
             sendTelemetryEvent('command.removeBackground.triggered');
             await removeVsCodeBackground();
-        })
-    );
+        }),
 
-    push(
         vscode.commands.registerCommand('oclite.setBackground', async () => {
             const url = await vscode.window.showInputBox({
                 prompt: 'Enter the image URL to set as VS Code Editor Background',
@@ -291,6 +291,11 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                 sendTelemetryEvent('command.setBackground.triggered', { source: 'palette' });
                 await setVsCodeBackground(url);
             }
+        }),
+
+        vscode.commands.registerCommand('oclite.removeTheme', async () => {
+            sendTelemetryEvent('command.removeTheme.triggered');
+            await removeOcliteTheme(context);
         })
     );
 }

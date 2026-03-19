@@ -50,8 +50,8 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
                             data-prompt="${safePrompt}"
                             data-idx="${idx}">💻 Generate Code</button>
                         <button class="action-link bg-btn"
-                            data-action="setbg"
-                            data-url="${safePrimaryUrl}">🖼️ Set Background</button>
+                            data-action="settheme"
+                            data-url="${safePrimaryUrl}">🎨 Apply as Theme</button>
                         <button class="action-link delete-btn"
                             data-action="delete"
                             data-blob="${safeName}"
@@ -106,6 +106,7 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
     <div class="gallery-header">
         <h1>🎨 Your OCLite Gallery</h1>
         <p>AI-generated images stored on cloud</p>
+        <button id="resetThemeBtn" style="margin-top:10px;padding:7px 16px;background:#c62828;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;">🗑️ Reset OCLite Theme</button>
     </div>
     <div class="gallery-grid">${imageCards}</div>
     <div id="toast" class="toast"></div>
@@ -219,15 +220,13 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
                     });
                 }
             }
-            else if (action === 'setbg') {
+            else if (action === 'settheme') {
                 const url = btn.getAttribute('data-url');
-                console.log('[OCLite Gallery] Set background action, URL:', url);
                 if (url && url !== 'unknown' && url.startsWith('http')) {
-                    vscode.postMessage({ type: 'setBackground', imageUrl: url });
-                    showToast('🚀 Setting VS Code background...');
+                    vscode.postMessage({ type: 'setTheme', imageUrl: url });
+                    showToast('🎨 Applying theme from image palette...');
                 } else {
-                    console.error('[OCLite Gallery] Invalid URL for background:', url);
-                    showToast('❌ Invalid image URL for background');
+                    showToast('❌ Invalid image URL');
                 }
             }
             else if (action === 'delete') {
@@ -243,6 +242,10 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
                 }
             }
         }, false);
+
+        document.getElementById('resetThemeBtn').addEventListener('click', function() {
+            vscode.postMessage({ type: 'removeTheme' });
+        });
 
         window.addEventListener('message', function(event) {
             const msg = event.data;
