@@ -59,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext) {
             sendTelemetryEvent(eventName, properties, measurements),
     };
 
-    const chatProvider = new ChatProvider(context.extensionUri);
+    const chatProvider = new ChatProvider(context.extensionUri, context);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ChatProvider.viewType, chatProvider)
     );
@@ -177,6 +177,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     sendTelemetryEvent('extension.deactivated');
-    OCLiteChatParticipant.cleanupAll();
+    OCLiteChatParticipant.cleanup();
     console.log('[OCLite] Extension deactivated.');
 }

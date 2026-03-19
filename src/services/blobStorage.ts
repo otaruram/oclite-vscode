@@ -12,6 +12,7 @@ import { hashUserId, getUserContainerPath } from './auth';
 import { checkRateLimit, getRateLimitStatus as _getRateLimitStatus } from './rateLimit';
 import { GalleryImage } from '../types';
 import { getBlobSasUrl } from '../utilities/secrets';
+import { addSecureUrlsToImages, checkSecureUrlServiceHealth } from './secureUrlService';
 
 /**
  * Sanitise a string so it is safe for use as an Azure Blob metadata value.
@@ -210,7 +211,48 @@ export async function fetchImageGallery(maxResults: number = 50): Promise<Galler
         }
 
         images.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
-        sendTelemetryEvent('blob.gallery.fetched', { imageCount: images.length.toString(), userId: uid });
+        
+        // Try to add secure SAS URLs via backend API
+        try {
+            const isServiceHealthy = await checkSecureUrlServiceHealth();
+            
+            if (isServiceHealthy) {
+                console.log('[OCLite Blob] Using secure URL service for gallery images');
+                const secureImages = await addSecureUrlsToImages(images);
+                
+                sendTelemetryEvent('blob.gallery.fetched', { 
+                    imageCount: secureImages.length.toString(), 
+                    userId: uid,
+                    secureUrlsGenerated: 'true',
+                    secureUrlService: 'backend_api'
+                });
+                
+                return secureImages;
+            } else {
+                console.warn('[OCLite Blob] Secure URL service unavailable, using fallback URLs');
+                sendTelemetryEvent('blob.gallery.fetched', { 
+                    imageCount: images.length.toString(), 
+                    userId: uid,
+                    secureUrlsGenerated: 'false',
+                    fallbackReason: 'service_unavailable'
+                });
+            }
+        } catch (error: any) {
+            console.error('[OCLite Blob] Secure URL service error:', error.message);
+            sendTelemetryEvent('blob.gallery.secure_url_error', {
+                error: error.message,
+                imageCount: images.length.toString()
+            });
+        }
+        
+        // Fallback to original URLs if secure service fails
+        sendTelemetryEvent('blob.gallery.fetched', { 
+            imageCount: images.length.toString(), 
+            userId: uid,
+            secureUrlsGenerated: 'false',
+            fallbackReason: 'service_error'
+        });
+        
         return images;
     } catch (error: any) {
         console.error('[OCLite Blob] Gallery failed:', error.message);

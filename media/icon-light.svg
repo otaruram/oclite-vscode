@@ -1,1 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24" fill="#6B21A8" stroke="#6B21A8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle with light theme -->
+  <circle cx="64" cy="64" r="60" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+  
+  <!-- Main icon - AI brain/chip hybrid -->
+  <g transform="translate(64,64)">
+    <!-- Central processor -->
+    <rect x="-16" y="-16" width="32" height="32" rx="4" fill="url(#grad1)"/>
+    
+    <!-- Neural connections -->
+    <circle cx="-24" cy="-24" r="3" fill="#6366f1" opacity="0.8"/>
+    <circle cx="24" cy="-24" r="3" fill="#6366f1" opacity="0.8"/>
+    <circle cx="-24" cy="24" r="3" fill="#6366f1" opacity="0.8"/>
+    <circle cx="24" cy="24" r="3" fill="#6366f1" opacity="0.8"/>
+    
+    <!-- Connection lines -->
+    <line x1="-21" y1="-21" x2="-16" y2="-16" stroke="#6366f1" stroke-width="2" opacity="0.6"/>
+    <line x1="21" y1="-21" x2="16" y2="-16" stroke="#6366f1" stroke-width="2" opacity="0.6"/>
+    <line x1="-21" y1="21" x2="-16" y2="16" stroke="#6366f1" stroke-width="2" opacity="0.6"/>
+    <line x1="21" y1="21" x2="16" y2="16" stroke="#6366f1" stroke-width="2" opacity="0.6"/>
+    
+    <!-- OCL text -->
+    <text x="0" y="6" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">OCL</text>
+  </g>
+</svg>

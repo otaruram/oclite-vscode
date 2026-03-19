@@ -19,6 +19,7 @@ import {
 } from '../services/blobStorage';
 import { signInMicrosoft } from '../services/auth';
 import { createGalleryHtml } from '../ui/galleryHtml';
+import { getSecureImageUrl } from '../services/secureUrlService';
 
 import { setVsCodeBackground, removeVsCodeBackground } from '../services/backgroundInjector';
 
@@ -69,11 +70,27 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
             }
         }),
 
-        vscode.commands.registerCommand('oclite.copyShareLink', async (url: string) => {
+        vscode.commands.registerCommand('oclite.copyShareLink', async (url: string, blobName?: string) => {
             try {
-                await vscode.env.clipboard.writeText(url);
-                vscode.window.showInformationMessage('📋 Image link copied!');
-                sendTelemetryEvent('command.copyShareLink.success');
+                let finalUrl = url;
+                
+                // If we have a blob name, try to generate a secure URL
+                if (blobName) {
+                    console.log(`[OCLite] Generating secure URL for copy: ${blobName}`);
+                    const secureUrl = await getSecureImageUrl(blobName);
+                    if (secureUrl) {
+                        finalUrl = secureUrl;
+                        console.log(`[OCLite] Using secure URL for copy`);
+                    } else {
+                        console.warn(`[OCLite] Failed to generate secure URL, using fallback`);
+                    }
+                }
+                
+                await vscode.env.clipboard.writeText(finalUrl);
+                vscode.window.showInformationMessage('📋 Secure image link copied!');
+                sendTelemetryEvent('command.copyShareLink.success', { 
+                    secureUrl: blobName ? 'true' : 'false' 
+                });
             } catch (e: any) {
                 vscode.window.showErrorMessage(`Failed to copy link: ${e.message}`);
             }
@@ -103,10 +120,42 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                         retainContextWhenHidden: true,
                     });
                     panel.webview.html = createGalleryHtml(images, panel.webview.cspSource);
-                    // Listen for generateCode message from webview
+                    // Listen for messages from webview
                     panel.webview.onDidReceiveMessage(async (msg) => {
-                        // generateCode is now handled client-side in galleryHtml.ts
-                        if (msg && msg.type === 'deleteImage' && msg.blobName) {
+                        // Handle secure URL generation requests
+                        if (msg && msg.type === 'generateSecureUrl' && msg.blobName) {
+                            try {
+                                console.log(`[OCLite Gallery] Generating secure URL for: ${msg.blobName}`);
+                                const secureUrl = await getSecureImageUrl(msg.blobName);
+                                
+                                if (secureUrl) {
+                                    console.log(`[OCLite Gallery] Secure URL generated successfully`);
+                                    panel.webview.postMessage({
+                                        type: 'secureUrlGenerated',
+                                        secureUrl: secureUrl,
+                                        action: msg.action,
+                                        prompt: msg.prompt,
+                                        idx: msg.idx
+                                    });
+                                } else {
+                                    console.error(`[OCLite Gallery] Failed to generate secure URL for ${msg.blobName}`);
+                                    panel.webview.postMessage({
+                                        type: 'secureUrlError',
+                                        error: 'Failed to generate secure URL',
+                                        action: msg.action
+                                    });
+                                }
+                            } catch (error: any) {
+                                console.error(`[OCLite Gallery] Secure URL generation error:`, error.message);
+                                panel.webview.postMessage({
+                                    type: 'secureUrlError',
+                                    error: error.message,
+                                    action: msg.action
+                                });
+                            }
+                        }
+                        // Handle image deletion
+                        else if (msg && msg.type === 'deleteImage' && msg.blobName) {
                             const idx = msg.idx;
                             try {
                                 // Delete from Blob Storage only

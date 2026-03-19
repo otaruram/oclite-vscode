@@ -13,6 +13,7 @@ export interface GalleryImage {
     originalPrompt: string;
     model: string;
     userId?: string;
+    secureExpiry?: Date; // When the secure SAS token expires
 }
 
 /** Rate limit info for a user */

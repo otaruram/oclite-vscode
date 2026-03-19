@@ -34,7 +34,7 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
             console.log(`[OCLite Gallery] Using URL for image ${idx}: ${primaryUrl}`);
             
             return `
-            <div class="image-card" id="card-${idx}">
+            <div class="image-card" id="card-${idx}" data-blob-name="${safeName}">
                 <img src="${safePrimaryUrl}" alt="${safePrompt}" loading="lazy" onerror="console.error('[OCLite Gallery] Failed to load image:', '${safePrimaryUrl}')" />
                 <div class="image-info">
                     <h3>${img.originalPrompt}</h3>
@@ -192,31 +192,12 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
                 const url = btn.getAttribute('data-url');
                 console.log('[OCLite Gallery] Copy action, URL:', url);
                 if (url && url !== 'unknown' && url.startsWith('http')) {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(url)
-                            .then(() => {
-                                console.log('[OCLite Gallery] Copy successful');
-                                showToast('📋 Image link copied!');
-                            })
-                            .catch((err) => {
-                                console.error('[OCLite Gallery] Copy failed:', err);
-                                showToast('❌ Copy failed');
-                            });
-                    } else {
-                        // Fallback for older browsers
-                        try {
-                            const textArea = document.createElement('textarea');
-                            textArea.value = url;
-                            document.body.appendChild(textArea);
-                            textArea.select();
-                            document.execCommand('copy');
-                            document.body.removeChild(textArea);
-                            showToast('📋 Image link copied!');
-                        } catch (err) {
-                            console.error('[OCLite Gallery] Fallback copy failed:', err);
-                            showToast('❌ Copy failed');
-                        }
-                    }
+                    // Generate secure read-only URL for copying
+                    vscode.postMessage({ 
+                        type: 'generateSecureUrl', 
+                        blobName: btn.closest('.image-card').getAttribute('data-blob-name'),
+                        action: 'copy'
+                    });
                 } else {
                     console.error('[OCLite Gallery] Invalid URL for copy:', url);
                     showToast('❌ Invalid image URL');
@@ -227,8 +208,15 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
                 const prompt = btn.getAttribute('data-prompt');
                 const idx = btn.getAttribute('data-idx');
                 console.log('[OCLite Gallery] Generate code action:', { url, prompt, idx });
-                if (url && idx) {
-                    generateCode(url, prompt, parseInt(idx));
+                if (idx) {
+                    // Generate secure read-only URL for code generation
+                    vscode.postMessage({ 
+                        type: 'generateSecureUrl', 
+                        blobName: btn.closest('.image-card').getAttribute('data-blob-name'),
+                        action: 'gencode',
+                        prompt: prompt,
+                        idx: parseInt(idx)
+                    });
                 }
             }
             else if (action === 'setbg') {
@@ -262,6 +250,26 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
                 const card = document.getElementById('card-' + msg.idx);
                 if (msg.success && card) { card.remove(); showToast('🗑️ Image deleted!'); }
                 else if (card) { card.style.opacity = '1'; showToast('❌ Delete failed'); }
+            }
+            else if (msg && msg.type === 'secureUrlGenerated') {
+                if (msg.action === 'copy' && msg.secureUrl) {
+                    // Copy the secure URL to clipboard
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(msg.secureUrl)
+                            .then(() => {
+                                console.log('[OCLite Gallery] Secure URL copied successfully');
+                                showToast('📋 Secure image link copied!');
+                            })
+                            .catch((err) => {
+                                console.error('[OCLite Gallery] Copy failed:', err);
+                                showToast('❌ Copy failed');
+                            });
+                    }
+                }
+                else if (msg.action === 'gencode' && msg.secureUrl && typeof msg.idx === 'number') {
+                    // Generate code with secure URL
+                    generateCode(msg.secureUrl, msg.prompt, msg.idx);
+                }
             }
         });
     </script>

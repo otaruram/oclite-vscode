@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OCLite Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas" width="128" height="128" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="downloadIcon()">Download PNG</button>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas with dark background
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, 128, 128);
+        
+        // Draw outer circle
+        ctx.beginPath();
+        ctx.arc(64, 64, 60, 0, 2 * Math.PI);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Create gradient for main processor
+        const gradient = ctx.createLinearGradient(48, 48, 80, 80);
+        gradient.addColorStop(0, '#6366f1');
+        gradient.addColorStop(1, '#8b5cf6');
+        
+        // Draw central processor
+        ctx.fillStyle = gradient;
+        ctx.fillRect(48, 48, 32, 32);
+        
+        // Draw neural connection points
+        ctx.fillStyle = '#6366f1';
+        ctx.globalAlpha = 0.8;
+        
+        // Four corner nodes
+        ctx.beginPath();
+        ctx.arc(40, 40, 3, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(88, 40, 3, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(40, 88, 3, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(88, 88, 3, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw connection lines
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.6;
+        
+        ctx.beginPath();
+        ctx.moveTo(43, 43);
+        ctx.lineTo(48, 48);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(85, 43);
+        ctx.lineTo(80, 48);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(43, 85);
+        ctx.lineTo(48, 80);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(85, 85);
+        ctx.lineTo(80, 80);
+        ctx.stroke();
+        
+        // Draw OCL text
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('OCL', 64, 70);
+        
+        function downloadIcon() {
+            const link = document.createElement('a');
+            link.download = 'icon.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
