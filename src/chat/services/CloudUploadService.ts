@@ -57,21 +57,26 @@ export class CloudUploadService {
                 };
             }
 
-            // Extract blob name from the URL for secure URL generation
+            // Extract blob name from the URL
             let blobName: string | undefined;
             try {
                 const url = new URL(uploadResult);
                 const pathParts = url.pathname.split('/');
                 if (pathParts.length >= 3) {
-                    // URL format: https://account.blob.core.windows.net/container/user/filename
-                    blobName = pathParts.slice(2).join('/'); // Get everything after container name
+                    blobName = pathParts.slice(2).join('/');
                 }
             } catch (e) {
                 console.warn('[OCLite] Failed to extract blob name from URL:', e);
             }
 
-            console.log(`[OCLite] Cloud upload result: ${uploadResult}`);
-            console.log(`[OCLite] Extracted blob name: ${blobName}`);
+            // Generate read-only secure URL for sharing (replaces raw blob URL)
+            let secureShareUrl = uploadResult;
+            if (blobName) {
+                const secure = await getSecureImageUrl(blobName);
+                if (secure) { secureShareUrl = secure; }
+            }
+
+            console.log(`[OCLite] Cloud upload done, blobName: ${blobName}`);
 
             sendTelemetryEvent('cloud.upload.success', {
                 model,
@@ -82,7 +87,7 @@ export class CloudUploadService {
 
             return {
                 success: true,
-                shareUrl: uploadResult,
+                shareUrl: secureShareUrl,
                 blobName
             };
 

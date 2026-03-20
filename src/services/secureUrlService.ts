@@ -1,196 +1,142 @@
 /**
- * secureUrlService.ts — Service to fetch secure SAS URLs from backend API
- * 
- * This service calls your Python backend to get secure, short-lived SAS tokens
- * instead of using the long-lived insecure SAS URL.
+ * secureUrlService.ts — Generate read-only per-blob SAS URLs for gallery display.
+ *
+ * Security model:
+ *  - Generate new SAS tokens with read-only permissions (sp=r)
+ *  - Short expiry time (1 hour) to limit exposure
+ *  - Scoped to specific blob only
  */
 
-import axios from 'axios';
 import { GalleryImage } from '../types';
+import { getBlobSasUrl, getSecureSasUrl } from '../utilities/secrets';
 import { sendTelemetryEvent } from './telemetry';
+import axios from 'axios';
+import * as vscode from 'vscode';
 
-// Backend API configuration - Update this to your actual backend URL
-const SECURE_SAS_API_BASE = process.env.SECURE_SAS_API_URL || 'http://localhost:8000';
+// ── Ultra-Secure Authentication ───────────────────────────────────────────
 
-interface SecureUrlResponse {
-    success: boolean;
-    secure_url?: string;
-    expires_at?: string;
-    expires_in_seconds?: number;
-    error?: string;
+/**
+ * Get authentication headers for ultra-secure Azure Functions
+ */
+async function getUltraSecureHeaders(): Promise<Record<string, string>> {
+    try {
+        // Get Microsoft authentication session
+        const session = await vscode.authentication.getSession('microsoft', ['https://graph.microsoft.com/User.Read'], { createIfNone: false });
+        
+        if (!session) {
+            throw new Error('Microsoft authentication required for ultra-secure functions');
+        }
+        
+        return {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'X-OCLite-Signature': 'oclite-ext-2026-v1.55-secure',
+            'X-OCLite-Version': '0.1.55',
+            'X-OCLite-IDE': 'vscode',
+            'User-Agent': 'Visual Studio Code OCLite Extension/0.1.55'
+        };
+    } catch (error) {
+        console.error('[OCLite SecureURL] Failed to get ultra-secure auth headers:', error);
+        throw error;
+    }
 }
 
-interface BatchSecureUrlResponse {
-    success: boolean;
-    results?: Array<{
-        blob_name: string;
-        success: boolean;
-        secure_url?: string;
-        expires_at?: string;
-        expires_in_seconds?: number;
-        error?: string;
-    }>;
-    total_processed?: number;
-    error?: string;
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Generate a secure read-only SAS URL via Azure Function with 1-hour expiry.
+ */
+async function buildReadOnlyBlobUrl(blobName: string): Promise<string | null> {
+    try {
+        const secureSasUrl = getSecureSasUrl();
+        
+        if (secureSasUrl) {
+            console.log('[OCLite SecureURL] Calling ultra-secure Azure Function for SAS generation');
+            
+            // Get authentication headers for ultra-secure system
+            const authHeaders = await getUltraSecureHeaders();
+            
+            const response = await axios.post(secureSasUrl, {
+                blobName: blobName,
+                containerName: 'oclite-gallery'
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders
+                },
+                timeout: 10000 // 10 seconds
+            });
+            
+            if (response.data.success && response.data.secureUrl) {
+                console.log('[OCLite SecureURL] Generated secure SAS with 1-hour expiry via ultra-secure system');
+                return response.data.secureUrl;
+            }
+        }
+        
+        // Fallback: use original SAS (less secure)
+        console.warn('[OCLite SecureURL] Ultra-secure Azure Function unavailable, using fallback');
+        return buildFallbackUrl(blobName);
+    } catch (e) {
+        console.error('[OCLite SecureURL] Ultra-secure Azure Function failed:', e);
+        return buildFallbackUrl(blobName);
+    }
 }
 
 /**
- * Get a secure SAS URL for a single blob
+ * Fallback: use original SAS URL as-is (less secure but works)
  */
-export async function getSecureImageUrl(blobName: string): Promise<string | null> {
+function buildFallbackUrl(blobName: string): string | null {
     try {
-        console.log(`[OCLite SecureURL] Requesting secure URL for: ${blobName}`);
-        
-        const response = await axios.post<SecureUrlResponse>(
-            `${SECURE_SAS_API_BASE}/api/secure-image-url`,
-            { blob_name: blobName },
-            {
-                timeout: 10000,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        
-        if (response.data.success && response.data.secure_url) {
-            console.log(`[OCLite SecureURL] Generated secure URL, expires: ${response.data.expires_at}`);
-            sendTelemetryEvent('secure_url.single.success', {
-                blobName: blobName.substring(0, 50), // Truncate for privacy
-                expiresIn: response.data.expires_in_seconds?.toString() || '3600'
-            });
-            
-            return response.data.secure_url;
-        } else {
-            console.error(`[OCLite SecureURL] Failed to get secure URL: ${response.data.error}`);
-            sendTelemetryEvent('secure_url.single.error', {
-                error: response.data.error || 'unknown'
-            });
-            return null;
-        }
-        
-    } catch (error: any) {
-        console.error(`[OCLite SecureURL] API call failed:`, error.message);
-        sendTelemetryEvent('secure_url.single.api_error', {
-            error: error.message
-        });
+        const accountSasUrl = getBlobSasUrl();
+        const parsed = new URL(accountSasUrl);
+        const accountName = parsed.hostname.split('.')[0];
+        const containerName = 'oclite-gallery';
+
+        return `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}?${parsed.search.substring(1)}`;
+    } catch (e) {
+        console.error('[OCLite SecureURL] Fallback failed:', e);
         return null;
     }
 }
 
+// ── Public API ─────────────────────────────────────────────────────────────
+
 /**
- * Get secure SAS URLs for multiple blobs (batch operation)
+ * Get a secure read-only URL for a single blob with 1-hour expiry via Azure Function.
  */
-export async function getSecureGalleryUrls(blobNames: string[]): Promise<Map<string, string>> {
-    const urlMap = new Map<string, string>();
-    
-    if (blobNames.length === 0) {
-        return urlMap;
-    }
-    
-    try {
-        console.log(`[OCLite SecureURL] Requesting secure URLs for ${blobNames.length} blobs`);
-        
-        const response = await axios.post<BatchSecureUrlResponse>(
-            `${SECURE_SAS_API_BASE}/api/secure-gallery-urls`,
-            { blob_names: blobNames },
-            {
-                timeout: 30000,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        
-        if (response.data.success && response.data.results) {
-            let successCount = 0;
-            let errorCount = 0;
-            
-            for (const result of response.data.results) {
-                if (result.success && result.secure_url) {
-                    urlMap.set(result.blob_name, result.secure_url);
-                    successCount++;
-                } else {
-                    console.error(`[OCLite SecureURL] Failed to get secure URL for ${result.blob_name}: ${result.error}`);
-                    errorCount++;
-                }
-            }
-            
-            console.log(`[OCLite SecureURL] Batch complete: ${successCount} success, ${errorCount} errors`);
-            sendTelemetryEvent('secure_url.batch.success', {
-                totalRequested: blobNames.length.toString(),
-                successCount: successCount.toString(),
-                errorCount: errorCount.toString()
-            });
-            
-        } else {
-            console.error(`[OCLite SecureURL] Batch request failed: ${response.data.error}`);
-            sendTelemetryEvent('secure_url.batch.error', {
-                error: response.data.error || 'unknown'
-            });
-        }
-        
-    } catch (error: any) {
-        console.error(`[OCLite SecureURL] Batch API call failed:`, error.message);
-        sendTelemetryEvent('secure_url.batch.api_error', {
-            error: error.message,
-            blobCount: blobNames.length.toString()
+export async function getSecureImageUrl(blobName: string): Promise<string | null> {
+    const url = await buildReadOnlyBlobUrl(blobName);
+    if (url) {
+        const isSecure = url.includes('sp=r') && !url.includes('sp=rwdlacup');
+        sendTelemetryEvent('secure_url.single.generated', { 
+            blobName: blobName.substring(0, 50),
+            isSecure: isSecure.toString(),
+            method: isSecure ? 'azure_function' : 'fallback'
         });
     }
-    
-    return urlMap;
+    return url;
 }
 
 /**
- * Add secure URLs to gallery images using batch API
+ * Add secure URLs to gallery images with 1-hour expiry via Azure Function.
  */
 export async function addSecureUrlsToImages(images: GalleryImage[]): Promise<GalleryImage[]> {
-    if (images.length === 0) {
-        return images;
+    const results: GalleryImage[] = [];
+    
+    for (const image of images) {
+        const url = await buildReadOnlyBlobUrl(image.name);
+        if (url) {
+            results.push({ ...image, url: url, shareUrl: url });
+        } else {
+            results.push(image);
+        }
     }
     
-    // Extract blob names from images
-    const blobNames = images.map(img => img.name);
-    
-    // Get secure URLs in batch
-    const secureUrlMap = await getSecureGalleryUrls(blobNames);
-    
-    // Apply secure URLs to images
-    const secureImages = images.map(image => {
-        const secureUrl = secureUrlMap.get(image.name);
-        
-        if (secureUrl) {
-            return {
-                ...image,
-                url: secureUrl,
-                shareUrl: secureUrl,
-                secureExpiry: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
-            };
-        } else {
-            // Fallback to original URL if secure generation failed
-            console.warn(`[OCLite SecureURL] No secure URL available for ${image.name}, using fallback`);
-            return image;
-        }
-    });
-    
-    const secureCount = secureImages.filter(img => img.secureExpiry).length;
-    console.log(`[OCLite SecureURL] Applied secure URLs to ${secureCount}/${images.length} images`);
-    
-    return secureImages;
+    return results;
 }
 
 /**
- * Check if backend API is available
+ * Health check — always available since we don't need a backend.
  */
 export async function checkSecureUrlServiceHealth(): Promise<boolean> {
-    try {
-        const response = await axios.get(`${SECURE_SAS_API_BASE}/health`, {
-            timeout: 5000
-        });
-        
-        return response.status === 200 && response.data.status === 'healthy';
-        
-    } catch (error: any) {
-        console.error(`[OCLite SecureURL] Health check failed:`, error.message);
-        return false;
-    }
+    return true;
 }

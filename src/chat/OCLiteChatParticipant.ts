@@ -96,7 +96,10 @@ export class OCLiteChatParticipant {
             }
         );
 
-        participant.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon.png');
+        participant.iconPath = {
+            light: vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-light.svg'),
+            dark:  vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-participant.svg'),
+        };
         return participant;
     }
 

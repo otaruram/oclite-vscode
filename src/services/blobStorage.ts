@@ -182,23 +182,25 @@ export async function fetchImageGallery(maxResults: number = 50): Promise<Galler
             if (count >= maxResults) break;
             if (blob.metadata?.userId !== uid) continue;
 
-            const blobUrl = _containerClient.getBlobClient(blob.name).url;
-            
-            // Debug logging untuk setiap image
-            console.log(`[OCLite Blob] Processing image ${count + 1}:`, {
-                blobName: blob.name,
-                blobUrl: blobUrl.substring(0, 100) + '...',
-            });
-            
-            // Use blob storage URL directly - no more ImageKit dependency
-            const primaryUrl = blobUrl;
-            const shareUrl = blobUrl;
+            // getBlobClient().url returns bare URL without SAS.
+            // Use the account SAS URL to build a proper authenticated URL instead.
+            const sasUrl = getSecureSasUrl();
+            let blobUrl: string;
+            try {
+                const parsed = new URL(sasUrl);
+                const accountName = parsed.hostname.split('.')[0];
+                // Use the original SAS query string as-is — don't modify params to avoid signature issues
+                blobUrl = `https://${accountName}.blob.core.windows.net/${CONTAINER_NAME}/${blob.name}?${parsed.search.substring(1)}`;
+            } catch {
+                // Fallback: use raw URL (may not load in webview but won't crash)
+                blobUrl = _containerClient!.getBlobClient(blob.name).url;
+            }
 
             images.push({
                 name: blob.name,
-                url: primaryUrl,        // URL untuk display di gallery
-                shareUrl: shareUrl,     // URL untuk sharing/copying
-                shareId: blob.name,     // Use blob name as share ID
+                url: blobUrl,
+                shareUrl: blobUrl,
+                shareId: blob.name,
                 lastModified: blob.properties.lastModified || new Date(),
                 sizeBytes: blob.properties.contentLength || 0,
                 originalPrompt: (blob.metadata?.originalPromptB64

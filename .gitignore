@@ -80,3 +80,33 @@ logo-small.png
 *code=*
 *azurewebsites*
 *azure*function*
+
+# Oclite-1 folder and contents
+Oclite-1/
+Oclite-1/**
+
+# Documentation and test files (ignore for GitHub)
+*.md
+!README.md
+!CONTRIBUTING.md
+!LICENSE.md
+
+# Test and utility JavaScript files
+test-*.js
+*-test.js
+deploy-*.js
+fix-*.js
+cleanup-*.js
+encode-*.js
+encrypt-*.js
+implement-*.js
+update-*.js
+prepare-*.js
+create-*.js
+
+# PowerShell scripts
+*.ps1
+
+# Temporary and build files
+*.html
+!src/**/*.html

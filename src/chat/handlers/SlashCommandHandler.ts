@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import { AIService } from '../../services/ai';
 import { ImageGenerationService } from '../services/ImageGenerationService';
+import { CloudUploadService } from '../services/CloudUploadService';
 import { sendTelemetryEvent } from '../../services/telemetry';
 
 export interface SlashCommandResult {
@@ -12,10 +13,14 @@ export interface SlashCommandResult {
 }
 
 export class SlashCommandHandler {
+    private cloudService: CloudUploadService;
+
     constructor(
         private readonly aiService: AIService,
         private readonly imageService: ImageGenerationService
-    ) {}
+    ) {
+        this.cloudService = new CloudUploadService();
+    }
 
     /**
      * Process slash commands and return result
@@ -81,7 +86,7 @@ export class SlashCommandHandler {
         stream.markdown('Generating 3 variations with different styles...\n\n');
         
         const styles = ['cinematic', 'anime', 'photorealistic'];
-        const variations = [];
+        const variations: Array<{ path: string; style: string; prompt: string }> = [];
         
         for (let i = 0; i < 3; i++) {
             if (token.isCancellationRequested) break;
@@ -96,13 +101,17 @@ export class SlashCommandHandler {
                 if (imageUrl) {
                     const localPath = await this.imageService.downloadToTemp(imageUrl, `${basePrompt}_${styles[i]}`);
                     variations.push({ path: localPath, style: styles[i], prompt: stylePrompt });
-                    
+
                     stream.markdown(`✅ **Variation ${i + 1} (${styles[i]})** ready!\n\n`);
-                    stream.button({ 
-                        command: 'oclite.previewImage', 
-                        title: `👁️ Preview ${styles[i]}`, 
-                        arguments: [localPath] 
-                    });
+                    stream.button({ command: 'oclite.previewImage', title: `👁️ Preview ${styles[i]}`, arguments: [localPath] });
+                    stream.button({ command: 'oclite.saveImage',    title: `💾 Save`,                 arguments: [localPath, stylePrompt] });
+                    stream.button({ command: 'oclite.viewGallery',  title: `🖼️ Gallery` });
+
+                    // Upload to cloud and add share button
+                    const upload = await this.cloudService.uploadImage(localPath, stylePrompt, model);
+                    if (upload.success && upload.shareUrl) {
+                        stream.button(this.cloudService.createShareButton(upload.shareUrl, upload.blobName));
+                    }
                 }
             } catch (err: any) {
                 stream.markdown(`⚠️ Variation ${i + 1} failed: ${err.message}\n\n`);
@@ -149,7 +158,13 @@ export class SlashCommandHandler {
                 const localPath = await this.imageService.downloadToTemp(imageUrl, enhancedPrompt);
                 stream.markdown(`✅ **${style} style image ready!**\n\n`);
                 stream.button({ command: 'oclite.previewImage', title: '👁️ Preview', arguments: [localPath] });
-                stream.button({ command: 'oclite.saveImage', title: '💾 Save', arguments: [localPath, enhancedPrompt] });
+                stream.button({ command: 'oclite.saveImage',    title: '💾 Save',    arguments: [localPath, enhancedPrompt] });
+                stream.button({ command: 'oclite.viewGallery',  title: '🖼️ Gallery' });
+
+                const upload = await this.cloudService.uploadImage(localPath, enhancedPrompt, model);
+                if (upload.success && upload.shareUrl) {
+                    stream.button(this.cloudService.createShareButton(upload.shareUrl, upload.blobName));
+                }
                 
                 sendTelemetryEvent('chat.style.generated', { style: style.toLowerCase() });
                 return { command: 'style', style };
@@ -185,13 +200,16 @@ export class SlashCommandHandler {
                 if (imageUrl) {
                     const localPath = await this.imageService.downloadToTemp(imageUrl, `${comparePrompt}_${model}`);
                     results.push({ path: localPath, model });
-                    
+
                     stream.markdown(`✅ **${model}** complete!\n\n`);
-                    stream.button({ 
-                        command: 'oclite.previewImage', 
-                        title: `👁️ View ${model}`, 
-                        arguments: [localPath] 
-                    });
+                    stream.button({ command: 'oclite.previewImage', title: `👁️ View ${model}`, arguments: [localPath] });
+                    stream.button({ command: 'oclite.saveImage',    title: `💾 Save`,           arguments: [localPath, comparePrompt] });
+                    stream.button({ command: 'oclite.viewGallery',  title: `🖼️ Gallery` });
+
+                    const upload = await this.cloudService.uploadImage(localPath, comparePrompt, model);
+                    if (upload.success && upload.shareUrl) {
+                        stream.button(this.cloudService.createShareButton(upload.shareUrl, upload.blobName));
+                    }
                 }
             } catch (err: any) {
                 stream.markdown(`⚠️ ${model} failed: ${err.message}\n\n`);

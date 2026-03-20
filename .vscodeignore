@@ -12,3 +12,5 @@ out/
 webpack/
 .github/
 **/__mocks__/*
+Oclite-1/
+Oclite-1/**

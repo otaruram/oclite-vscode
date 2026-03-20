@@ -96,7 +96,7 @@ export class ImageGenerationService {
         try {
             const response = await axios.get(imageUrl, { 
                 responseType: 'arraybuffer', 
-                timeout: 30000,
+                timeout: 90000, // 90s — generation URLs can be slow to serve
                 headers: {
                     'User-Agent': 'OCLite-VSCode-Extension'
                 }
