@@ -183,10 +183,17 @@ export class OCLiteChatParticipant {
      */
     private async storeGenerationMetadata(sasUrl: string, prompt: string, model: string, blobName: string): Promise<void> {
         try {
+            console.log(`[OCLite] Storing gallery metadata...`);
+            console.log(`[OCLite] - SAS URL: ${sasUrl.substring(0, 100)}...`);
+            console.log(`[OCLite] - Blob name: ${blobName}`);
+            console.log(`[OCLite] - Prompt: ${prompt.substring(0, 50)}...`);
+            console.log(`[OCLite] - Model: ${model}`);
+            
             // Store in extension global state for quick gallery access
             const galleryItems = this.context.globalState.get<any[]>('oclite.galleryItems', []);
+            console.log(`[OCLite] Current gallery items: ${galleryItems.length}`);
             
-            galleryItems.unshift({
+            const newItem = {
                 url: sasUrl,
                 shareUrl: sasUrl,
                 name: blobName,
@@ -194,7 +201,9 @@ export class OCLiteChatParticipant {
                 model: model,
                 lastModified: new Date().toISOString(),
                 timestamp: Date.now()
-            });
+            };
+            
+            galleryItems.unshift(newItem);
 
             // Keep only last 100 items
             if (galleryItems.length > 100) {
@@ -202,9 +211,25 @@ export class OCLiteChatParticipant {
             }
 
             await this.context.globalState.update('oclite.galleryItems', galleryItems);
-            console.log(`[OCLite] Stored generation metadata for gallery: ${blobName}`);
+            console.log(`[OCLite] ✅ Gallery metadata stored successfully! Total items: ${galleryItems.length}`);
+            
+            // Verify storage
+            const verified = this.context.globalState.get<any[]>('oclite.galleryItems', []);
+            console.log(`[OCLite] Verification: ${verified.length} items in storage`);
+            
         } catch (error: any) {
-            console.warn(`[OCLite] Failed to store gallery metadata:`, error.message);
+            console.error(`[OCLite] ❌ Failed to store gallery metadata:`, error);
+            console.error(`[OCLite] Error details:`, error.message, error.stack);
+            
+            // Show error to user
+            vscode.window.showWarningMessage(
+                `⚠️ Failed to save to gallery: ${error.message}`,
+                'View Logs'
+            ).then((choice) => {
+                if (choice === 'View Logs') {
+                    vscode.commands.executeCommand('workbench.action.toggleDevTools');
+                }
+            });
         }
     }
 

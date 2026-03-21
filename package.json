@@ -2,7 +2,7 @@
   "name": "oclite-vscode",
   "displayName": "OCLite",
   "description": "AI-powered generation management for VS Code",
-  "version": "0.1.60",
+  "version": "0.1.61",
   "publisher": "oclitesite",
   "icon": "assets/icon.png",
   "galleryBanner": {

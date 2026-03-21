@@ -73,26 +73,10 @@ async function authenticateUser(): Promise<AuthenticationSession | null> {
 // ── Initialize ─────────────────────────────────────────────────────────────
 
 export async function initializeBlobStorage(): Promise<void> {
-    console.log('[OCLite Blob] Initializing...');
-
-    const sasUrl = getSecureSasUrl();
-    if (!sasUrl) { console.log('[OCLite Blob] No SAS URL — disabled.'); return; }
-
-    const session = await authenticateUser();
-    if (!session) { console.log('[OCLite Blob] No auth — local mode.'); return; }
-
-    try {
-        _blobServiceClient = new BlobServiceClient(sasUrl);
-        _containerClient = _blobServiceClient.getContainerClient(CONTAINER_NAME);
-        await _containerClient.createIfNotExists();
-
-        console.log(`[OCLite Blob] Ready — container "${CONTAINER_NAME}" for ${session.account.label}`);
-        sendTelemetryEvent('blob.initialized', { userId: hashUserId(session.account.id) });
-    } catch (error: any) {
-        console.error('[OCLite Blob] Init failed:', error.message);
-        sendTelemetryEvent('blob.init.error', { error: error.message });
-        vscode.window.showErrorMessage(`⚠️ Cloud storage failed: ${error.message}`);
-    }
+    console.log('[OCLite Blob] Blob storage disabled - using HttpTrigger4 for all uploads');
+    // Blob storage is now disabled for security reasons
+    // All uploads go through HttpTrigger4 which generates secure read-only SAS URLs
+    return;
 }
 
 // ── Upload ─────────────────────────────────────────────────────────────────
@@ -102,155 +86,38 @@ export async function uploadGeneratedImage(
     originalPrompt: string,
     model: string = 'oclite'
 ): Promise<string | null> {
-    if (!_containerClient || !_currentUserSession) {
-        vscode.window.showInformationMessage('🔒 Sign in to save images to cloud!', 'Sign In Now', 'Skip').then((s) => {
-            if (s === 'Sign In Now') vscode.commands.executeCommand('oclite.signInMicrosoft');
-        });
-        return null;
-    }
-
-    if (!checkRateLimit(_currentUserSession.account.id)) return null;
-
-    try {
-        // Upload directly to Azure Blob Storage only
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const slug = originalPrompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-').substring(0, 30);
-        const fileName = `${timestamp}_${model}_${slug}.png`;
-        const userPath = getUserContainerPath(_currentUserSession);
-        const blobName = `${userPath}/${fileName}`;
-        const blockBlob = _containerClient.getBlockBlobClient(blobName);
-
-        await blockBlob.uploadData(imageBuffer, {
-            blobHTTPHeaders: {
-                blobContentType: 'image/png',
-                blobCacheControl: 'public, max-age=31536000',
-            },
-            metadata: {
-                originalPrompt: sanitizeMetadata(originalPrompt),
-                originalPromptB64: Buffer.from(originalPrompt, 'utf8').toString('base64').substring(0, 1024),
-                model: sanitizeMetadata(model),
-                generatedBy: 'oclite-vscode',
-                timestamp: new Date().toISOString(),
-                userId: sanitizeMetadata(hashUserId(_currentUserSession.account.id)),
-                userEmail: sanitizeMetadata(_currentUserSession.account.label || 'anonymous'),
-                shareable: 'true',
-            },
-        });
-
-        // Use blob storage URL directly
-        const shareUrl = blockBlob.url;
-
-        console.log(`[OCLite Blob] Uploaded — Share: ${shareUrl}`);
-        vscode.window.showInformationMessage(`✨ Uploaded! Image link ready.`, 'Copy Link').then((s) => {
-            if (s === 'Copy Link') { vscode.env.clipboard.writeText(shareUrl); vscode.window.showInformationMessage('📋 Copied!'); }
-        });
-
-        sendTelemetryEvent('blob.upload.success', {
-            model, fileName, promptLength: originalPrompt.length.toString(),
-            userId: hashUserId(_currentUserSession.account.id),
-        }, { imageSizeBytes: imageBuffer.length });
-
-        return shareUrl;
-    } catch (error: any) {
-        console.error('[OCLite Blob] Upload failed:', error.message);
-        sendTelemetryEvent('blob.upload.error', { error: error.message });
-        vscode.window.showErrorMessage(`⚠️ Upload failed: ${error.message}`);
-        return null;
-    }
+    // Blob storage upload is disabled for security reasons
+    // All uploads now go through HttpTrigger4 which generates secure read-only SAS URLs
+    console.log('[OCLite Blob] Direct upload disabled - use HttpTrigger4 instead');
+    
+    vscode.window.showInformationMessage(
+        '✨ Images are automatically uploaded via secure pipeline!',
+        'Learn More'
+    ).then((choice) => {
+        if (choice === 'Learn More') {
+            vscode.env.openExternal(vscode.Uri.parse('https://github.com/otaruram/oclite-vscode'));
+        }
+    });
+    
+    return null;
 }
 
 // ── Gallery ────────────────────────────────────────────────────────────────
 
 export async function fetchImageGallery(maxResults: number = 50): Promise<GalleryImage[]> {
-    if (!_containerClient || !_currentUserSession) {
-        vscode.window.showInformationMessage('🔒 Sign in to access your gallery.', 'Sign In').then((s) => {
-            if (s === 'Sign In') authenticateUser();
-        });
-        return [];
-    }
-
-    if (!checkRateLimit(_currentUserSession.account.id)) return [];
-
-    try {
-        const images: GalleryImage[] = [];
-        const userPath = getUserContainerPath(_currentUserSession);
-        const iter = _containerClient.listBlobsFlat({ includeMetadata: true, prefix: userPath + '/' });
-        const uid = hashUserId(_currentUserSession.account.id);
-
-        let count = 0;
-        for await (const blob of iter) {
-            if (count >= maxResults) break;
-            if (blob.metadata?.userId !== uid) continue;
-
-            // getBlobClient().url returns bare URL without SAS.
-            // Use the account SAS URL to build a proper authenticated URL instead.
-            const sasUrl = getSecureSasUrl();
-            let blobUrl: string;
-            try {
-                const parsed = new URL(sasUrl);
-                const accountName = parsed.hostname.split('.')[0];
-                // Use the original SAS query string as-is — don't modify params to avoid signature issues
-                blobUrl = `https://${accountName}.blob.core.windows.net/${CONTAINER_NAME}/${blob.name}?${parsed.search.substring(1)}`;
-            } catch {
-                // Fallback: use raw URL (may not load in webview but won't crash)
-                blobUrl = _containerClient!.getBlobClient(blob.name).url;
-            }
-
-            images.push({
-                name: blob.name,
-                url: blobUrl,
-                shareUrl: blobUrl,
-                shareId: blob.name,
-                lastModified: blob.properties.lastModified || new Date(),
-                sizeBytes: blob.properties.contentLength || 0,
-                originalPrompt: (blob.metadata?.originalPromptB64
-                    ? Buffer.from(blob.metadata.originalPromptB64, 'base64').toString('utf8')
-                    : blob.metadata?.originalPrompt) || 'Unknown prompt',
-                model: blob.metadata?.model || 'unknown',
-                userId: blob.metadata?.userId || 'unknown',
-            });
-            count++;
-        }
-
-        images.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
-        
-        // Skip secure URL generation for faster gallery loading
-        // Secure URLs will be generated on-demand when user clicks actions
-        console.log(`[OCLite Blob] Gallery loaded: ${images.length} images (secure URLs on-demand)`);
-        
-        sendTelemetryEvent('blob.gallery.fetched', { 
-            imageCount: images.length.toString(), 
-            userId: uid,
-            secureUrlsGenerated: 'on_demand',
-            loadingStrategy: 'fast'
-        });
-        
-        return images;
-    } catch (error: any) {
-        console.error('[OCLite Blob] Gallery failed:', error.message);
-        sendTelemetryEvent('blob.gallery.error', { error: error.message });
-        vscode.window.showErrorMessage(`⚠️ Failed to load gallery: ${error.message}`);
-        return [];
-    }
+    // Blob storage fetch is disabled for security reasons
+    // Gallery now uses local cache from HttpTrigger4 generated images
+    console.log('[OCLite Blob] Using local cache for gallery (blob storage disabled)');
+    return [];
 }
 
 // ── Delete ─────────────────────────────────────────────────────────────────
 
 export async function deleteGalleryImage(blobName: string): Promise<boolean> {
-    if (!_containerClient) {
-        vscode.window.showWarningMessage('Blob storage not available.');
-        return false;
-    }
-    try {
-        await _containerClient.deleteBlob(blobName);
-        console.log(`[OCLite Blob] Deleted blob: ${blobName}`);
-        sendTelemetryEvent('blob.delete.success', { blobName });
-        return true;
-    } catch (error: any) {
-        console.error(`[OCLite Blob] Delete failed for ${blobName}:`, error.message);
-        sendTelemetryEvent('blob.delete.error', { blobName, error: error.message });
-        return false;
-    }
+    // Blob storage delete is disabled for security reasons
+    // Images can only be deleted from local cache
+    console.log(`[OCLite Blob] Delete from blob storage disabled: ${blobName}`);
+    return false;
 }
 
 // ── Copy Image Link ────────────────────────────────────────────────────────

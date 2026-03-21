@@ -117,6 +117,8 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand('oclite.viewGallery', async () => {
             sendTelemetryEvent('command.viewGallery.triggered');
             
+            console.log('[OCLite Gallery] Opening gallery...');
+            
             await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: 'Loading image gallery...', cancellable: false },
                 async () => {
@@ -124,33 +126,44 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                     let images: any[] = [];
                     
                     if (isBlobStorageAvailable()) {
+                        console.log('[OCLite Gallery] Blob storage available, fetching...');
                         images = await fetchImageGallery(50);
+                    } else {
+                        console.log('[OCLite Gallery] Blob storage not available');
                     }
                     
                     // If no blob storage or empty, use local cache
                     if (images.length === 0) {
                         const cachedItems = context.globalState.get<any[]>('oclite.galleryItems', []);
+                        console.log(`[OCLite Gallery] Using cached gallery items: ${cachedItems.length}`);
+                        
                         if (cachedItems.length > 0) {
-                            console.log(`[OCLite] Using cached gallery items: ${cachedItems.length}`);
                             images = cachedItems.map(item => ({
                                 ...item,
                                 lastModified: new Date(item.lastModified || item.timestamp || Date.now()),
                                 sizeBytes: 0,
                                 userId: 'local'
                             }));
+                            console.log(`[OCLite Gallery] Mapped ${images.length} cached items`);
+                        } else {
+                            console.log('[OCLite Gallery] No cached items found');
                         }
                     }
                     
                     if (!images.length) {
+                        console.log('[OCLite Gallery] Gallery is empty');
                         vscode.window.showInformationMessage('Your gallery is empty. Generate some images first!');
                         return;
                     }
+                    
+                    console.log(`[OCLite Gallery] Displaying ${images.length} images`);
                     
                     const panel = vscode.window.createWebviewPanel('ocliteGallery', 'OCLite Gallery', vscode.ViewColumn.One, {
                         enableScripts: true,
                         retainContextWhenHidden: true,
                     });
                     panel.webview.html = createGalleryHtml(images, panel.webview.cspSource);
+                    
                     // Listen for messages from webview
                     panel.webview.onDidReceiveMessage(async (msg) => {
                         // Handle secure URL generation requests
@@ -189,6 +202,8 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                         else if (msg && msg.type === 'deleteImage' && msg.blobName) {
                             const idx = msg.idx;
                             try {
+                                console.log(`[OCLite Gallery] Deleting image: ${msg.blobName}`);
+                                
                                 let success = false;
                                 
                                 // Try to delete from blob storage
@@ -201,6 +216,8 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                                 const filtered = cachedItems.filter(item => item.name !== msg.blobName);
                                 await context.globalState.update('oclite.galleryItems', filtered);
                                 
+                                console.log(`[OCLite Gallery] Deleted from cache. Remaining: ${filtered.length}`);
+                                
                                 panel.webview.postMessage({ type: 'deleteResult', success: true, idx });
                                 
                                 if (success) {
@@ -208,7 +225,7 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                                 }
                             } catch (err) {
                                 const errorMsg = (err && (err as any).message) ? (err as any).message : String(err);
-                                console.error('[OCLite] Delete error:', errorMsg);
+                                console.error('[OCLite Gallery] Delete error:', errorMsg);
                                 panel.webview.postMessage({ type: 'deleteResult', success: false, idx });
                                 vscode.window.showErrorMessage(`Failed to delete image: ${errorMsg}`);
                             }
