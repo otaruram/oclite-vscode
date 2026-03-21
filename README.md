@@ -1,16 +1,98 @@
-# OCLite Copilot Extension
+# OCLite - AI Image Generator & Gallery for VS Code
 
 ![OCLite Logo](assets/icon.png)
 
-AI-powered creative asset generation for Visual Studio Code.
+**AI-powered image generation with instant gallery, cloud storage, and secure sharing.** Generate professional game assets, UI mockups, character designs, and creative art directly in Visual Studio Code using SDXL Lightning, Flux, and GPT-4o mini.
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/oclitesite.oclite-vscode?label=Marketplace&logo=visual-studio-code&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/oclitesite.oclite-vscode?label=Downloads&color=success)](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/oclitesite.oclite-vscode?label=Rating&color=orange)](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 ![Verified Publisher](https://img.shields.io/badge/Publisher-Verified-blue?logo=microsoft)
 
 ---
 
+## 🎨 What is OCLite?
+
+OCLite is a **professional AI image generation extension** for Visual Studio Code that brings the power of Stable Diffusion XL, Flux, and GPT-4o mini directly into your development workflow. Perfect for:
+
+- 🎮 **Game Developers** - Generate character sprites, textures, environments, and UI assets
+- 🎨 **UI/UX Designers** - Create mockups, icons, and design concepts instantly
+- 🖼️ **Digital Artists** - Produce high-quality artwork with AI assistance
+- 💻 **Developers** - Visualize ideas and create placeholder assets quickly
+- 📱 **Product Managers** - Generate visual concepts for presentations
+
+### Why Choose OCLite?
+
+✅ **Instant Gallery** - Auto-save all generated images with one-click access  
+✅ **Secure Cloud Storage** - Azure Blob Storage with time-limited SAS URLs  
+✅ **No API Keys Required** - Pre-configured and ready to use  
+✅ **Multiple AI Models** - SDXL Lightning, Flux Schnell, Flux Dev, Animagine XL  
+✅ **Smart Prompt Enhancement** - GPT-4o mini refines your prompts automatically  
+✅ **Native VS Code Integration** - Chat participant, sidebar, and gallery views  
+✅ **Enterprise Security** - XOR encryption, request signing, read-only URLs
+
+---
+
 [![Watch OCLite in Action](https://img.youtube.com/vi/bAfpFPK02g4/maxresdefault.jpg)](https://youtu.be/bAfpFPK02g4)
+
+## 🚀 Quick Start
+
+1. **Install** OCLite from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
+2. **Generate** images using `@oclite your prompt` in GitHub Copilot Chat
+3. **View Gallery** - Click the 🖼️ Gallery button to see all your generated images
+4. **Share** - Copy secure URLs or save images to your workspace
+
+No configuration needed - works out of the box!
+
+## ✨ Key Features
+
+### 🎨 AI Image Generation
+
+Generate professional-quality images using state-of-the-art AI models:
+
+- **SDXL Lightning** - Ultra-fast generation (4 steps, <10 seconds)
+- **Flux Schnell** - High quality, fast results
+- **Flux Dev** - Maximum quality for production assets
+- **Animagine XL** - Specialized for anime and manga styles
+- **Realistic Vision** - Photorealistic images and portraits
+
+### 🖼️ Instant Gallery
+
+- **Auto-Save** - All generated images automatically saved to gallery
+- **Fast Loading** - Local cache for instant access
+- **Secure URLs** - Time-limited (1h), read-only SAS URLs
+- **One-Click Actions** - Copy URL, generate code, set as background, delete
+- **No Sign-In Required** - Works offline with local cache
+
+### 💬 Chat Participant Integration
+
+Type `@oclite` in GitHub Copilot Chat for conversational image generation:
+
+```
+@oclite warrior character for RPG game
+@oclite modern UI dashboard mockup
+@oclite fantasy landscape with mountains
+@oclite pixel art character sprite
+```
+
+### 🤖 Smart Prompt Enhancement
+
+GPT-4o mini automatically refines your prompts for better results:
+
+- **Input**: "warrior character"
+- **Enhanced**: "Realistic warrior character, heroic stance, intricate armor, atmospheric lighting, high-poly model, AAA quality, 8K textures"
+
+### 🎯 Workspace Detection
+
+Automatically suggests the best asset style based on your project:
+
+| Project Type | Suggested Style |
+| :--- | :--- |
+| Unity / Unreal | Character / Environment / Texture |
+| Godot | Pixel Art / 2D Sprites |
+| React / Vue / Angular | UI Icons / Mockups |
+| Web Development | Hero Images / Backgrounds |
 
 ## Overview
 
@@ -359,6 +441,76 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## 🔍 Search Keywords
+
+OCLite is your all-in-one solution for:
+- AI image generation in VS Code
+- Stable Diffusion XL integration
+- Image gallery management
+- Game asset creation
+- UI mockup generator
+- Cloud storage for images
+- Secure image sharing
+- Midjourney alternative for developers
+- DALL-E alternative for VS Code
+- Automatic1111 alternative
+- ComfyUI alternative
+- AI art generator
+- Creative asset management
+- Developer productivity tools
+- Visual Studio Code extensions
+
+## 🌟 Popular Use Cases
+
+### Game Development
+- Character sprites and portraits
+- Environment textures and backgrounds
+- UI elements and icons
+- Concept art and mood boards
+- Item and weapon designs
+
+### UI/UX Design
+- Website mockups and hero images
+- App interface concepts
+- Icon sets and button designs
+- Background patterns and textures
+- Marketing materials
+
+### Content Creation
+- Blog post featured images
+- Social media graphics
+- Presentation visuals
+- Documentation illustrations
+- Placeholder images
+
+### Software Development
+- README banner images
+- Project logos and branding
+- Error state illustrations
+- Loading screen graphics
+- Tutorial screenshots
+
+## 📊 Comparison
+
+| Feature | OCLite | Midjourney | DALL-E | Stable Diffusion Web UI |
+| :--- | :---: | :---: | :---: | :---: |
+| VS Code Integration | ✅ | ❌ | ❌ | ❌ |
+| Instant Gallery | ✅ | ✅ | ❌ | ❌ |
+| No API Key Setup | ✅ | ❌ | ❌ | ❌ |
+| Cloud Storage | ✅ | ✅ | ❌ | ❌ |
+| Secure Sharing | ✅ | ✅ | ❌ | ❌ |
+| Multiple Models | ✅ | ❌ | ❌ | ✅ |
+| Smart Prompts (GPT-4) | ✅ | ❌ | ❌ | ❌ |
+| Free Tier | ✅ | ❌ | ❌ | ✅ |
+| Enterprise Security | ✅ | ✅ | ✅ | ❌ |
+
+## 🤝 Support & Community
+
+- 📖 [Documentation](https://github.com/otaruram/oclite-vscode)
+- 🐛 [Report Issues](https://github.com/otaruram/oclite-vscode/issues)
+- 💡 [Feature Requests](https://github.com/otaruram/oclite-vscode/issues)
+- ⭐ [Star on GitHub](https://github.com/otaruram/oclite-vscode)
 
 ## Trademarks
 
