@@ -41,7 +41,7 @@ Right-click any file or folder in the Explorer and select **"OCLite: Analyze & G
 
 ### Complete Image Generation Pipeline
 
-OCLite uses a **3-stage serverless pipeline** for optimal image generation:
+OCLite uses a **3-stage serverless pipeline** for optimal image generation with enterprise-grade security:
 
 ```text
 Stage 1: Prompt Refinement (HttpTrigger2)
@@ -51,14 +51,16 @@ Stage 2: Image Generation (HttpTrigger1)
   ↓ Refined prompt → SDXL Lightning → Base64 image data
   
 Stage 3: Cloud Upload (HttpTrigger4)
-  ↓ Base64 image → Azure Blob Storage → Public SAS URL (1 hour expiry)
+  ↓ Base64 image → Azure Blob Storage → Secure SAS URL (read-only, 1h expiry)
 ```
 
 This architecture ensures:
 - **No local downloads** - Images go directly from generator to cloud storage
-- **Secure sharing** - Time-limited SAS URLs with read-only access
+- **Secure sharing** - Time-limited SAS URLs with read-only access (sp=r, 1 hour)
 - **Fast delivery** - Parallel processing with async Azure Functions
 - **Cost efficiency** - Serverless scaling with pay-per-use pricing
+- **Auto-save to gallery** - Generated images automatically appear in gallery
+- **No manual upload** - All uploads via secure HttpTrigger4 pipeline
 
 ## AI Backend - AIAAS-oclite
 
@@ -213,18 +215,20 @@ Automatically detects the project type and suggests the best asset style:
 ### 🎯 What Works Without Cloud Setup
 
 ✅ **Generate AI images** with multiple models  
-✅ **Automatic cloud upload** with secure SAS URLs (1 hour expiry)  
+✅ **Automatic cloud upload** with secure SAS URLs (read-only, 1h expiry)  
+✅ **Auto-save to gallery** - images automatically appear after generation  
+✅ **Instant gallery access** - no waiting, uses local cache  
 ✅ **Save images** to your local workspace  
 ✅ **Preview images** in VS Code editor  
 ✅ **Smart prompt enhancement** with GPT-4o mini  
 ✅ **Multi-agent analysis** for code-based asset generation  
-✅ **Public sharing URLs** for generated images
+✅ **Public sharing URLs** for generated images (secure, time-limited)
 
 ### ☁️ What Requires Cloud Setup (Optional)
 
-📱 **Persistent cloud gallery** across devices  
+📱 **Persistent cloud gallery** across devices (currently disabled for security)  
 📊 **Usage analytics** and telemetry  
-🔐 **Custom Azure storage** configuration
+🔐 **Custom Azure storage** configuration (not recommended - use HttpTrigger4 pipeline)
 
 ## Extension Settings
 
@@ -257,15 +261,18 @@ OCLite uses enterprise-grade security to protect your data:
 ### 🔒 **Secure Storage**
 
 - **API Keys**: Stored in VS Code's secure credential store (never in plain text)
-- **Azure Connection Strings**: Encrypted using VS Code's secrets API
-- **User Data**: Isolated per Microsoft account with encrypted paths
+- **Azure Connection Strings**: Encrypted using XOR encryption in source code
+- **User Data**: Isolated per user with encrypted paths
+- **No Direct Blob Access**: All uploads via secure HttpTrigger4 pipeline (no direct blob storage access)
 
 ### ☁️ **Cloud Features Security**
 
-- **Microsoft Authentication**: Official VS Code authentication APIs
-- **Blob Storage**: User-isolated containers with public read URLs for sharing
+- **Secure SAS URLs**: Read-only (sp=r), 1-hour expiry, blob-level scope (sr=b)
+- **No Permissive Access**: Removed insecure account-level SAS (was: rwdlacup, 5 years)
+- **HttpTrigger4 Pipeline**: All uploads via secure backend (generates safe SAS URLs)
 - **Rate Limiting**: 10 requests per minute per user to prevent abuse
 - **Auto-cleanup**: Temporary files automatically removed
+- **Gallery Security**: Local cache + secure SAS URLs (no direct blob storage queries)
 
 ### 📊 **Telemetry (Optional)**
 
@@ -285,6 +292,16 @@ OCLite also includes a 3-layer security system for API credential protection:
 
 - **Verified Publisher** — Published as a verified publisher on the VS Code Marketplace.
 
+### 🔐 **Security Best Practices**
+
+- ✅ All image uploads via HttpTrigger4 (secure pipeline)
+- ✅ SAS URLs: read-only, 1-hour expiry, blob-level scope
+- ✅ No direct blob storage access from extension
+- ✅ Gallery uses local cache + on-demand secure URLs
+- ✅ No permissive account-level SAS tokens
+- ❌ Never share SAS URLs with write/delete permissions
+- ❌ Never use account-level SAS with long expiry
+
 For more details, see [SECURITY.md](SECURITY.md).
 
 ## Contributing
@@ -292,6 +309,23 @@ For more details, see [SECURITY.md](SECURITY.md).
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Release Notes
+
+### 0.1.61
+
+- **CRITICAL SECURITY FIX** — Disabled insecure blob storage SAS URL (was: rwdlacup permissions, 5 years expiry)
+- **Secure Pipeline** — All uploads now via HttpTrigger4 (read-only SAS, 1 hour expiry)
+- **Auto-Save to Gallery** — Generated images automatically saved and appear in gallery
+- **Instant Gallery** — Gallery uses local cache for fast loading
+- **Enhanced Logging** — Detailed logging for debugging gallery and generation issues
+- **Better Error Handling** — User-friendly error messages with "View Logs" option
+
+### 0.1.60
+
+- **Complete 3-Stage Pipeline** — Integrated HttpTrigger2 → HttpTrigger1 → HttpTrigger4 flow
+- **Automatic Cloud Upload** — All generated images automatically uploaded to cloud storage
+- **Secure SAS URLs** — Time-limited (1 hour) read-only URLs for sharing
+- **No Local Downloads** — Images go directly from generator to cloud storage
+- **Fixed HttpTrigger4** — Corrected Azure Blob REST API authorization header format
 
 ### 0.0.4
 
