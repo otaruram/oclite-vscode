@@ -116,20 +116,36 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
     push(
         vscode.commands.registerCommand('oclite.viewGallery', async () => {
             sendTelemetryEvent('command.viewGallery.triggered');
-            if (!isBlobStorageAvailable()) {
-                vscode.window.showWarningMessage('Blob storage is not configured. Please sign in to use cloud gallery.', 'Sign In').then((s) => {
-                    if (s === 'Sign In') vscode.commands.executeCommand('oclite.signInMicrosoft');
-                });
-                return;
-            }
+            
             await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: 'Loading image gallery...', cancellable: false },
                 async () => {
-                    const images = await fetchImageGallery(50);
+                    // Try to get images from blob storage first
+                    let images: any[] = [];
+                    
+                    if (isBlobStorageAvailable()) {
+                        images = await fetchImageGallery(50);
+                    }
+                    
+                    // If no blob storage or empty, use local cache
+                    if (images.length === 0) {
+                        const cachedItems = context.globalState.get<any[]>('oclite.galleryItems', []);
+                        if (cachedItems.length > 0) {
+                            console.log(`[OCLite] Using cached gallery items: ${cachedItems.length}`);
+                            images = cachedItems.map(item => ({
+                                ...item,
+                                lastModified: new Date(item.lastModified || item.timestamp || Date.now()),
+                                sizeBytes: 0,
+                                userId: 'local'
+                            }));
+                        }
+                    }
+                    
                     if (!images.length) {
                         vscode.window.showInformationMessage('Your gallery is empty. Generate some images first!');
                         return;
                     }
+                    
                     const panel = vscode.window.createWebviewPanel('ocliteGallery', 'OCLite Gallery', vscode.ViewColumn.One, {
                         enableScripts: true,
                         retainContextWhenHidden: true,
@@ -173,12 +189,22 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                         else if (msg && msg.type === 'deleteImage' && msg.blobName) {
                             const idx = msg.idx;
                             try {
-                                const success = await deleteGalleryImage(msg.blobName);
-                                panel.webview.postMessage({ type: 'deleteResult', success, idx });
+                                let success = false;
+                                
+                                // Try to delete from blob storage
+                                if (isBlobStorageAvailable()) {
+                                    success = await deleteGalleryImage(msg.blobName);
+                                }
+                                
+                                // Also remove from local cache
+                                const cachedItems = context.globalState.get<any[]>('oclite.galleryItems', []);
+                                const filtered = cachedItems.filter(item => item.name !== msg.blobName);
+                                await context.globalState.update('oclite.galleryItems', filtered);
+                                
+                                panel.webview.postMessage({ type: 'deleteResult', success: true, idx });
+                                
                                 if (success) {
                                     sendTelemetryEvent('gallery.delete.success', { blobName: msg.blobName });
-                                } else {
-                                    vscode.window.showErrorMessage('Failed to delete image from storage.');
                                 }
                             } catch (err) {
                                 const errorMsg = (err && (err as any).message) ? (err as any).message : String(err);

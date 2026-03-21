@@ -138,33 +138,87 @@ export class OCLiteChatParticipant {
         try {
             const model = config.get<string>('model') || 'sdxl-lightning';
             
-            // Generate image
-            const imageUrl = await this.imageService.generateImage(apiKey, model, prompt, stream, token);
-            if (!imageUrl) {
-                throw new Error('Generation did not produce an image URL.');
+            // Generate image (complete flow: HttpTrigger2 → HttpTrigger1 → HttpTrigger4)
+            // Returns SAS URL directly from cloud storage
+            const sasUrl = await this.imageService.generateImage(apiKey, model, prompt, stream, token);
+            if (!sasUrl) {
+                throw new Error('Generation did not produce a SAS URL.');
             }
 
-            // Download to temp
-            stream.progress('📥 Downloading generated image...');
-            const localPath = await this.imageService.downloadToTemp(imageUrl, prompt);
+            console.log(`[OCLite] Image generated and uploaded to cloud: ${sasUrl}`);
 
-            // Upload to cloud
-            const uploadResult = await this.cloudService.uploadImage(localPath, prompt, model, stream);
+            // Download to temp for local preview
+            stream.progress('📥 Preparing preview...');
+            const localPath = await this.imageService.downloadToTemp(sasUrl, prompt);
 
-            // Show results
-            this.showGenerationResults(stream, prompt, model, localPath, uploadResult);
+            const blobName = this.extractBlobNameFromUrl(sasUrl);
+
+            // Store generation metadata for gallery access
+            await this.storeGenerationMetadata(sasUrl, prompt, model, blobName);
+
+            // Show results (image already in cloud storage)
+            this.showGenerationResults(stream, prompt, model, localPath, {
+                success: true,
+                shareUrl: sasUrl,
+                blobName: blobName
+            });
 
             sendTelemetryEvent('chat.generation.completed', {
                 model,
                 promptLength: prompt.length.toString(),
-                cloudUpload: uploadResult.success ? 'true' : 'false'
+                cloudUpload: 'true',
+                autoSaved: 'true'
             });
 
-            return { metadata: { command: 'generate', model } };
+            return { metadata: { command: 'generate', model, sasUrl, blobName } };
 
         } catch (error: any) {
             this.handleGenerationError(error, stream);
             return { metadata: { command: 'error' } };
+        }
+    }
+
+    /**
+     * Store generation metadata for gallery access
+     */
+    private async storeGenerationMetadata(sasUrl: string, prompt: string, model: string, blobName: string): Promise<void> {
+        try {
+            // Store in extension global state for quick gallery access
+            const galleryItems = this.context.globalState.get<any[]>('oclite.galleryItems', []);
+            
+            galleryItems.unshift({
+                url: sasUrl,
+                shareUrl: sasUrl,
+                name: blobName,
+                originalPrompt: prompt,
+                model: model,
+                lastModified: new Date().toISOString(),
+                timestamp: Date.now()
+            });
+
+            // Keep only last 100 items
+            if (galleryItems.length > 100) {
+                galleryItems.splice(100);
+            }
+
+            await this.context.globalState.update('oclite.galleryItems', galleryItems);
+            console.log(`[OCLite] Stored generation metadata for gallery: ${blobName}`);
+        } catch (error: any) {
+            console.warn(`[OCLite] Failed to store gallery metadata:`, error.message);
+        }
+    }
+
+    /**
+     * Extract blob name from SAS URL for gallery reference
+     */
+    private extractBlobNameFromUrl(sasUrl: string): string {
+        try {
+            const url = new URL(sasUrl);
+            const pathParts = url.pathname.split('/');
+            // Format: /container-name/blob-name
+            return pathParts.length >= 3 ? pathParts.slice(2).join('/') : pathParts[pathParts.length - 1];
+        } catch {
+            return 'unknown';
         }
     }
 

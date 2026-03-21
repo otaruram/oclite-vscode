@@ -214,45 +214,15 @@ export async function fetchImageGallery(maxResults: number = 50): Promise<Galler
 
         images.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
         
-        // Try to add secure SAS URLs via backend API
-        try {
-            const isServiceHealthy = await checkSecureUrlServiceHealth();
-            
-            if (isServiceHealthy) {
-                console.log('[OCLite Blob] Using secure URL service for gallery images');
-                const secureImages = await addSecureUrlsToImages(images);
-                
-                sendTelemetryEvent('blob.gallery.fetched', { 
-                    imageCount: secureImages.length.toString(), 
-                    userId: uid,
-                    secureUrlsGenerated: 'true',
-                    secureUrlService: 'backend_api'
-                });
-                
-                return secureImages;
-            } else {
-                console.warn('[OCLite Blob] Secure URL service unavailable, using fallback URLs');
-                sendTelemetryEvent('blob.gallery.fetched', { 
-                    imageCount: images.length.toString(), 
-                    userId: uid,
-                    secureUrlsGenerated: 'false',
-                    fallbackReason: 'service_unavailable'
-                });
-            }
-        } catch (error: any) {
-            console.error('[OCLite Blob] Secure URL service error:', error.message);
-            sendTelemetryEvent('blob.gallery.secure_url_error', {
-                error: error.message,
-                imageCount: images.length.toString()
-            });
-        }
+        // Skip secure URL generation for faster gallery loading
+        // Secure URLs will be generated on-demand when user clicks actions
+        console.log(`[OCLite Blob] Gallery loaded: ${images.length} images (secure URLs on-demand)`);
         
-        // Fallback to original URLs if secure service fails
         sendTelemetryEvent('blob.gallery.fetched', { 
             imageCount: images.length.toString(), 
             userId: uid,
-            secureUrlsGenerated: 'false',
-            fallbackReason: 'service_error'
+            secureUrlsGenerated: 'on_demand',
+            loadingStrategy: 'fast'
         });
         
         return images;

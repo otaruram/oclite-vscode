@@ -2,7 +2,7 @@
   "name": "oclite-vscode",
   "displayName": "OCLite",
   "description": "AI-powered generation management for VS Code",
-  "version": "0.1.59",
+  "version": "0.1.60",
   "publisher": "oclitesite",
   "icon": "assets/icon.png",
   "galleryBanner": {
@@ -23,14 +23,9 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onView:oclite.sidebarView",
     "onView:oclite.chatView",
-    "onCommand:oclite.generateImage",
-    "onCommand:oclite.viewGallery",
-    "onCommand:oclite.chatWithAI",
-    "onCommand:oclite.openCanvas",
-    "onCommand:oclite.diagnostics",
-    "onCommand:oclite-vscode.analyzeAndGenerate",
     "onChatParticipant:oclite"
   ],
   "main": "./dist/extension.js",

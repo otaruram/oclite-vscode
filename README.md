@@ -35,8 +35,30 @@ Right-click any file or folder in the Explorer and select **"OCLite: Analyze & G
 | LLM Gateway | Azure Functions (Node.js) | Serverless proxy to GPT-4o mini |
 | Secrets Management | Azure Key Vault | Secure API key storage |
 | Image Generation | SDXL, Flux, Animagine (via OCLite API) | High-fidelity asset generation |
+| Cloud Storage | Azure Blob Storage | Secure image hosting with SAS URLs |
 | UI Framework | VS Code Webview UI Toolkit | Native VS Code experience |
 | Extension Host | TypeScript + VS Code API | Agent orchestration & commands |
+
+### Complete Image Generation Pipeline
+
+OCLite uses a **3-stage serverless pipeline** for optimal image generation:
+
+```text
+Stage 1: Prompt Refinement (HttpTrigger2)
+  ↓ User prompt → GPT-4o mini → Professional game art description
+  
+Stage 2: Image Generation (HttpTrigger1)  
+  ↓ Refined prompt → SDXL Lightning → Base64 image data
+  
+Stage 3: Cloud Upload (HttpTrigger4)
+  ↓ Base64 image → Azure Blob Storage → Public SAS URL (1 hour expiry)
+```
+
+This architecture ensures:
+- **No local downloads** - Images go directly from generator to cloud storage
+- **Secure sharing** - Time-limited SAS URLs with read-only access
+- **Fast delivery** - Parallel processing with async Azure Functions
+- **Cost efficiency** - Serverless scaling with pay-per-use pricing
 
 ## AI Backend - AIAAS-oclite
 
@@ -60,19 +82,26 @@ User prompt  OR  Right-click file/folder
        │                    │ creative brief
        │                    ▼
        │         ┌─────────────────────┐
-       ├────────►│ Creative Prompt     │  ← Generates optimized prompts
-                 │ Agent (GPT-4o mini) │
+       ├────────►│ HttpTrigger2        │  ← Refines prompt with GPT-4o mini
+                 │ (Prompt Refinement) │
                  └──────────┬──────────┘
                             │ refined prompt
                             ▼
                  ┌─────────────────────┐
-                 │ Image Generation    │  ← SDXL Lightning, Flux, etc.
-                 │ (OCLite API)        │
+                 │ HttpTrigger1        │  ← Generates image with SDXL
+                 │ (Image Generation)  │     Returns base64 data
                  └──────────┬──────────┘
-                            │ image
+                            │ base64 image
+                            ▼
+                 ┌─────────────────────┐
+                 │ HttpTrigger4        │  ← Uploads to Azure Blob Storage
+                 │ (Cloud Upload)      │     Returns SAS URL (1h expiry)
+                 └──────────┬──────────┘
+                            │ SAS URL
                             ▼
                  ┌─────────────────────┐
                  │ Save / Preview      │  ← Smart naming, workspace-aware
+                 │ Share / Gallery     │     Public URL for sharing
                  └─────────────────────┘
 ```
 
@@ -184,16 +213,18 @@ Automatically detects the project type and suggests the best asset style:
 ### 🎯 What Works Without Cloud Setup
 
 ✅ **Generate AI images** with multiple models  
+✅ **Automatic cloud upload** with secure SAS URLs (1 hour expiry)  
 ✅ **Save images** to your local workspace  
 ✅ **Preview images** in VS Code editor  
 ✅ **Smart prompt enhancement** with GPT-4o mini  
 ✅ **Multi-agent analysis** for code-based asset generation  
+✅ **Public sharing URLs** for generated images
 
 ### ☁️ What Requires Cloud Setup (Optional)
 
-🔗 **Public sharing URLs** for images  
-📱 **Cloud image gallery** across devices  
-📊 **Usage analytics** and telemetry
+📱 **Persistent cloud gallery** across devices  
+📊 **Usage analytics** and telemetry  
+🔐 **Custom Azure storage** configuration
 
 ## Extension Settings
 
@@ -299,4 +330,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 This project may contain trademarks or logos for projects, products, or services. Use of Microsoft trademarks must follow [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general). Use of third-party trademarks is subject to those third parties' policies.
 
-Marketplace: <https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode>
+Marketplace: <https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode>

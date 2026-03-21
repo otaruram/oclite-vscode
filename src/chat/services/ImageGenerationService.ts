@@ -14,7 +14,8 @@ const downloadedImages = new Map<string, string>();
 
 export class ImageGenerationService {
     /**
-     * Generate image using OCLite API
+     * Generate image using complete flow: HttpTrigger2 → HttpTrigger1 → HttpTrigger4
+     * Returns SAS URL for cloud-stored image
      */
     async generateImage(
         apiKey: string,
@@ -23,93 +24,96 @@ export class ImageGenerationService {
         stream: vscode.ChatResponseStream,
         token: vscode.CancellationToken
     ): Promise<string | null> {
-        const generatorUrl = getGeneratorUrl();
-        
-        console.log(`[OCLite] POST ${generatorUrl} | prompt_len=${prompt.length}`);
+        const { getHttpTrigger1Url, getHttpTrigger2Url, getHttpTrigger4Url } = require('../../utilities/secrets');
         
         try {
-            const response = await axios.post(
-                generatorUrl,
-                { prompt: prompt, apiKey: apiKey, model: model },
+            // STEP 1: Refine prompt with HttpTrigger2
+            stream.progress('🎨 Refining prompt...');
+            console.log(`[OCLite] Step 1: Refining prompt with HttpTrigger2`);
+            
+            const trigger2Url = getHttpTrigger2Url();
+            const refineResponse = await axios.post(
+                trigger2Url,
+                { prompt: prompt, type: 'chatParticipant' },
                 {
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    timeout: 120000, // 2 minutes for image generation
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 30000,
                     cancelToken: new axios.CancelToken((c) => token.onCancellationRequested(() => c())),
                 }
             );
             
-            console.log(`[OCLite] Generate OK: HTTP ${response.status} | ${JSON.stringify(response.data).substring(0, 200)}`);
+            const refinedPrompt = refineResponse.data.response || refineResponse.data.message || prompt;
+            console.log(`[OCLite] Refined prompt: ${refinedPrompt}`);
             
-            let imageUrl: any = null;
+            // STEP 2: Generate image with HttpTrigger1 (returns base64)
+            stream.progress('🖼️ Generating image...');
+            console.log(`[OCLite] Step 2: Generating image with HttpTrigger1`);
             
-            // Check for image URL in various response formats
-            if (response.data.status === 'succeeded') {
-                // Format 1: images array with URL
-                if (response.data.images && response.data.images.length > 0) {
-                    const img = response.data.images[0];
-                    if (typeof img === 'string') {
-                        imageUrl = img;
-                    } else if (img && typeof img === 'object' && img.url) {
-                        imageUrl = img.url;
-                    }
+            const trigger1Url = getHttpTrigger1Url();
+            const generateResponse = await axios.post(
+                trigger1Url,
+                { prompt: refinedPrompt },
+                {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-oclite-signature': `oclite-${Date.now()}`,
+                        'x-oclite-timestamp': Date.now().toString()
+                    },
+                    timeout: 120000,
+                    cancelToken: new axios.CancelToken((c) => token.onCancellationRequested(() => c())),
                 }
-                
-                // Format 2: direct image_url field
-                if (!imageUrl && response.data.image_url) {
-                    imageUrl = response.data.image_url;
+            );
+            
+            if (generateResponse.data.status !== 'succeeded' || !generateResponse.data.imageData) {
+                throw new Error('HttpTrigger1 failed to generate image');
+            }
+            
+            const imageBase64 = generateResponse.data.imageData;
+            console.log(`[OCLite] Image generated: ${imageBase64.length} chars base64`);
+            
+            // STEP 3: Upload to blob with HttpTrigger4 (returns SAS URL)
+            stream.progress('☁️ Uploading to cloud storage...');
+            console.log(`[OCLite] Step 3: Uploading to blob with HttpTrigger4`);
+            
+            const trigger4Url = getHttpTrigger4Url();
+            const uploadResponse = await axios.post(
+                trigger4Url,
+                { 
+                    imageData: imageBase64, 
+                    prompt: refinedPrompt,
+                    model: model 
+                },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 60000,
+                    cancelToken: new axios.CancelToken((c) => token.onCancellationRequested(() => c())),
                 }
-                
-                // Format 3: output array (legacy)
-                if (!imageUrl && response.data.output && response.data.output.length > 0) {
-                    imageUrl = response.data.output[0];
-                }
+            );
+            
+            if (uploadResponse.data.status !== 'success' || !uploadResponse.data.sasUrl) {
+                throw new Error('HttpTrigger4 failed to upload image');
             }
             
-            if (!imageUrl) {
-                console.error('[OCLite] No valid image URL in response:', JSON.stringify(response.data));
-                console.error('[OCLite] Response structure:', {
-                    status: response.data.status,
-                    hasImages: !!response.data.images,
-                    imagesLength: response.data.images?.length,
-                    firstImage: response.data.images?.[0],
-                    hasImageUrl: !!response.data.image_url,
-                    hasOutput: !!response.data.output
-                });
-                throw new Error('HttpTrigger1 did not return a valid image URL. Please check Azure Function logs.');
-            }
+            const sasUrl = uploadResponse.data.sasUrl;
+            console.log(`[OCLite] SAS URL: ${sasUrl}`);
             
-            // Ensure imageUrl is a string before validation
-            const imageUrlStr = String(imageUrl);
-            
-            // Validate the URL
-            if (!imageUrlStr || imageUrlStr === 'undefined' || imageUrlStr === 'null') {
-                throw new Error('Image URL is empty or invalid');
-            }
-            
-            if (!imageUrlStr.startsWith('http://') && !imageUrlStr.startsWith('https://')) {
-                console.error('[OCLite] Invalid image URL format:', imageUrlStr);
-                throw new Error(`Invalid image URL format: ${imageUrlStr}`);
-            }
-            
-            console.log(`[OCLite] Generated image URL: ${imageUrlStr}`);
             sendTelemetryEvent('image.generation.success', { 
                 model, 
-                promptLength: prompt.length.toString() 
+                promptLength: prompt.length.toString(),
+                flow: 'complete'
             });
             
-            return imageUrlStr;
+            return sasUrl;
             
         } catch (err: any) {
             const status = err.response?.status;
             const errBody = JSON.stringify(err.response?.data || err.message).substring(0, 300);
-            console.error(`[OCLite] Generate failed: HTTP ${status} | ${errBody}`);
+            console.error(`[OCLite] Complete flow failed: HTTP ${status} | ${errBody}`);
             
             sendTelemetryEvent('image.generation.error', { 
                 error: err.message,
-                status: status?.toString() || 'unknown'
+                status: status?.toString() || 'unknown',
+                flow: 'complete'
             });
             
             throw err;
