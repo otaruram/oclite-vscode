@@ -1,8 +1,21 @@
 {
   "name": "oclite-vscode",
   "displayName": "OCLite",
-  "description": "AI-powered image generation and gallery management for VS Code",
-  "version": "0.1.55",
+  "description": "AI-powered generation management for VS Code",
+  "version": "0.1.59",
+  "publisher": "oclitesite",
+  "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "keywords": [
+    "ai",
+    "image generation",
+    "gallery",
+    "azure",
+    "oclite"
+  ],
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -10,9 +23,15 @@
     "Other"
   ],
   "activationEvents": [
+    "onView:oclite.sidebarView",
+    "onView:oclite.chatView",
     "onCommand:oclite.generateImage",
     "onCommand:oclite.viewGallery",
-    "onCommand:oclite.chatWithAI"
+    "onCommand:oclite.chatWithAI",
+    "onCommand:oclite.openCanvas",
+    "onCommand:oclite.diagnostics",
+    "onCommand:oclite-vscode.analyzeAndGenerate",
+    "onChatParticipant:oclite"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -31,8 +50,103 @@
         "command": "oclite.chatWithAI",
         "title": "Chat with AI",
         "category": "OCLite"
+      },
+      {
+        "command": "oclite.openCanvas",
+        "title": "Open Canvas (Excalidraw)",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.signInMicrosoft",
+        "title": "Sign In Microsoft",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.signOut",
+        "title": "Sign Out",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.diagnostics",
+        "title": "Diagnostics",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.rateLimitStatus",
+        "title": "Rate Limit Status",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.sharingStats",
+        "title": "Sharing Stats",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.setBackground",
+        "title": "Set Background",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.removeBackground",
+        "title": "Remove Background",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite.removeTheme",
+        "title": "Remove Theme",
+        "category": "OCLite"
+      },
+      {
+        "command": "oclite-vscode.analyzeAndGenerate",
+        "title": "Analyze & Generate",
+        "category": "OCLite"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "oclite-vscode.analyzeAndGenerate",
+          "when": "true",
+          "group": "oclite"
+        }
+      ]
+    },
+    "chatParticipants": [
+      {
+        "id": "oclite",
+        "name": "oclite",
+        "description": "AI-powered image generation and coding assistant",
+        "isSticky": true
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "oclite-sidebar",
+          "title": "OCLite",
+          "icon": "assets/icon-light.svg"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "oclite.sidebarView",
+          "name": "OCLite Generator",
+          "type": "webview",
+          "when": "true",
+          "icon": "$(sparkle)"
+        }
+      ],
+      "oclite-sidebar": [
+        {
+          "id": "oclite.chatView",
+          "name": "OCLite Chat",
+          "type": "webview",
+          "when": "true"
+        }
+      ]
+    },
     "configuration": {
       "title": "OCLite",
       "properties": {

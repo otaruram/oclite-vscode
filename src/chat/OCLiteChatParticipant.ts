@@ -50,7 +50,7 @@ export class OCLiteChatParticipant {
      */
     private createChatParticipant(): vscode.ChatParticipant {
         const participant = vscode.chat.createChatParticipant(
-            'oclite.chat',
+            'oclite',
             async (request, _context, stream, token) => {
                 const config = vscode.workspace.getConfiguration('oclite');
                 const apiKey = getOcliteApiKey();
@@ -186,14 +186,11 @@ export class OCLiteChatParticipant {
         stream.button({ command: 'oclite.saveImage', title: '💾 Save', arguments: [localPath, prompt] });
         stream.button({ command: 'oclite.previewImage', title: '👁️ Preview', arguments: [localPath] });
         stream.button({ command: 'oclite.viewGallery', title: '🖼️ Gallery' });
-        stream.button({ command: 'oclite.generateFromPrompt', title: '🔄 Variations', arguments: [`/batch ${prompt}`] });
+        stream.button({ command: 'oclite.generateFromPrompt', title: '🔄 3 Variations', arguments: [`/batch ${prompt}`] });
 
-        // Share button with secure URL if available
+        // Copy URL button with secure URL if available
         if (uploadResult.success && uploadResult.shareUrl) {
-            const shareButton = this.cloudService.createShareButton(uploadResult.shareUrl, uploadResult.blobName);
-            stream.button(shareButton);
-        } else {
-            this.cloudService.showUploadTips(stream);
+            stream.button({ command: 'oclite.copyShareLink', title: '📋 Copy URL', arguments: [uploadResult.shareUrl, uploadResult.blobName] });
         }
     }
 

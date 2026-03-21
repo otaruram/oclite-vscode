@@ -47,26 +47,54 @@ export class AIService {
      */
     async refinePrompt(userPrompt: string, category?: string): Promise<{ prompt: string; fromLLM: boolean }> {
         const categoryHint = category && category !== 'None' && CATEGORY_PRESETS[category]
-            ? `\nIMPORTANT aspect for ${category} category: ${CATEGORY_PRESETS[category]}`
+            ? `\nCategory focus: ${CATEGORY_PRESETS[category]}`
             : '';
 
-        const systemPrompt = `You are a professional prompt engineer for Stable Diffusion XL image generation.
-Transform the user's short description into a professional, detailed SDXL prompt.
-Determine the best artistic STYLE, optimal COLORS and color palette, LIGHTING details, COMPOSITION details, and QUALITY tags.
-Do NOT add any text or watermark instructions. Maximum 75 words.
-Output ONLY the final prompt, no explanations.${categoryHint}`;
+        const systemPrompt = `YOU ARE A GAME ART DIRECTOR. YOUR ONLY JOB IS TO WRITE ASSET DESCRIPTIONS.
 
-        console.log('[OCLite] Sending prompt to GPT-4o mini for refinement...');
-        const result = await callLLM(userPrompt, systemPrompt, 60_000, undefined, 'ocliteGenerator');
-        if (result) {
-            const cleaned = result.replace(/^["']|["']$/g, '').trim();
-            if (cleaned.length > 10) {
-                console.log('[OCLite] GPT-4o mini refinement succeeded.');
-                return { prompt: cleaned, fromLLM: true };
+ABSOLUTE RULES:
+1. NEVER ask questions - FORBIDDEN
+2. NEVER say you need more info - FORBIDDEN  
+3. ALWAYS write a complete game asset description
+4. If input is vague, make professional assumptions
+5. Output ONLY the description (max 75 words)
+
+Format: [Art Style] [Asset Type], [Technical Details], [Quality Markers]
+
+Examples:
+"warrior" → "Stylized fantasy warrior character, dynamic combat pose, detailed plate armor with PBR textures, dramatic rim lighting, game-ready asset, AAA quality"
+
+"tree" → "Hand-painted fantasy tree, modular design, optimized for real-time rendering, ambient occlusion baked, vibrant colors, production quality"
+
+"car" → "Realistic sports car asset, high-poly model with PBR materials, detailed interior, dynamic reflections, 4K textures, game-ready"
+
+Input: "${userPrompt}"${categoryHint}
+
+Description (start writing NOW):`;
+
+        console.log('[OCLite] Refining prompt...');
+        try {
+            const result = await callLLM(userPrompt, systemPrompt, 60_000, undefined, 'chatParticipant');
+            
+            if (result && !result.startsWith('⚠️')) {
+                const cleaned = result.replace(/^["']|["']$/g, '').trim();
+                
+                // Check if AI is still asking questions
+                if (cleaned.includes('?') || cleaned.toLowerCase().includes('could you') || cleaned.toLowerCase().includes('please provide')) {
+                    console.warn('[OCLite] AI ignored instructions, using fallback');
+                    return { prompt: this.localRefinePrompt(userPrompt, category), fromLLM: false };
+                }
+                
+                if (cleaned.length > 10) {
+                    console.log('[OCLite] AI refinement succeeded');
+                    return { prompt: cleaned, fromLLM: true };
+                }
             }
+        } catch (error) {
+            console.warn('[OCLite] AI refinement failed:', error);
         }
 
-        console.warn('[OCLite] GPT-4o mini unavailable. Using local fallback.');
+        console.warn('[OCLite] Using local fallback');
         return { prompt: this.localRefinePrompt(userPrompt, category), fromLLM: false };
     }
 
@@ -78,47 +106,45 @@ Output ONLY the final prompt, no explanations.${categoryHint}`;
     private localRefinePrompt(userPrompt: string, category?: string): string {
         const prompt = userPrompt.trim().toLowerCase();
 
-        // ── Detect subject & pick matching style ──
-        const STYLE_RULES: { keywords: string[]; style: string }[] = [
-            { keywords: ['character', 'warrior', 'knight', 'hero', 'wizard', 'person', 'girl', 'boy', 'man', 'woman'],
-              style: 'concept art, dynamic pose, detailed anatomy, strong silhouette' },
-            { keywords: ['icon', 'ui', 'button', 'badge', 'logo'],
-              style: 'clean vector icon, flat design, crisp edges, centered, high contrast' },
-            { keywords: ['landscape', 'environment', 'city', 'forest', 'mountain', 'sky', 'ocean', 'room'],
-              style: 'cinematic wide shot, atmospheric perspective, matte painting style' },
-            { keywords: ['texture', 'tile', 'material', 'surface', 'wood', 'stone', 'metal'],
-              style: 'seamless tileable texture, PBR-ready, neutral even lighting' },
-            { keywords: ['pixel', 'retro', 'sprite', '8-bit', '16-bit'],
-              style: 'pixel art, retro game aesthetic, limited color palette, clean edges' },
-            { keywords: ['anime', 'manga', 'cel', 'cartoon'],
-              style: 'anime illustration, cel shading, vibrant colors, expressive' },
+        // Game-focused style detection
+        const GAME_STYLE_RULES: { keywords: string[]; style: string }[] = [
+            { keywords: ['character', 'warrior', 'knight', 'hero', 'wizard', 'person', 'npc', 'player'],
+              style: 'AAA game character asset, stylized art style, dynamic pose, detailed armor and clothing, PBR materials, game-ready topology, production quality' },
+            { keywords: ['weapon', 'sword', 'gun', 'axe', 'bow', 'staff'],
+              style: 'Game weapon asset, detailed textures, PBR materials, optimized for real-time rendering, game-ready, production quality' },
+            { keywords: ['environment', 'landscape', 'terrain', 'world', 'scene', 'level'],
+              style: 'Game environment asset, stylized or realistic style, optimized for real-time rendering, modular design, production quality' },
+            { keywords: ['building', 'house', 'castle', 'structure', 'architecture'],
+              style: 'Game architecture asset, modular design, tileable textures, optimized for real-time rendering, production quality' },
+            { keywords: ['prop', 'object', 'item', 'furniture', 'decoration'],
+              style: 'Game prop asset, detailed textures, PBR materials, optimized mesh, game-ready, production quality' },
+            { keywords: ['ui', 'icon', 'button', 'interface', 'hud'],
+              style: 'Game UI asset, clean vector style, high contrast, scalable design, production quality' },
+            { keywords: ['texture', 'material', 'surface'],
+              style: 'Seamless game texture, PBR-ready, tileable, high detail, optimized for real-time rendering' },
+            { keywords: ['effect', 'vfx', 'particle', 'magic', 'spell'],
+              style: 'Game VFX asset, stylized effect, optimized for real-time rendering, production quality' }
         ];
 
-        let detectedStyle = 'digital art, trending on Artstation';
-        for (const rule of STYLE_RULES) {
+        let detectedStyle = 'AAA game asset, stylized art style, detailed textures, PBR materials, optimized for real-time rendering, production quality';
+        
+        for (const rule of GAME_STYLE_RULES) {
             if (rule.keywords.some(kw => prompt.includes(kw))) {
                 detectedStyle = rule.style;
                 break;
             }
         }
 
-        // ── Category preset (overrides detection if present) ──
+        // Category preset override
         const categoryPreset = category && category !== 'None' && CATEGORY_PRESETS[category]
             ? CATEGORY_PRESETS[category]
             : '';
 
-        // ── Contextual lighting (avoid generic dump) ──
-        const isNight = /night|dark|moon|neon|glow/.test(prompt);
-        const lighting = isNight
-            ? 'neon glow, dramatic rim light, volumetric fog'
-            : 'soft natural light, global illumination, subtle rim light';
-
-        // ── Build final prompt ──
+        // Build final prompt with game industry focus
         const parts = [
             userPrompt.trim(),
             categoryPreset || detectedStyle,
-            lighting,
-            'highly detailed, masterpiece, sharp focus',
+            'Unreal Engine 5 quality, game-ready asset, highly detailed, masterpiece'
         ].filter(Boolean);
 
         const refined = parts.join(', ');
@@ -174,24 +200,130 @@ Output ONLY the filename. Example: dragon_concept_art_01.png`;
      * Generate Mermaid syntax diagram from prompt
      */
     async generateMermaid(prompt: string, style: string = 'flowchart'): Promise<string> {
-        const systemPrompt = `You are an expert Diagram Designer. The user will describe a system, flow, architecture, or idea.
-You must generate a valid Mermaid.js diagram representing it.
-The user requested a diagram of type/style: ${style}. Please use the most appropriate Mermaid syntax for this style (e.g. flowchart TD, sequenceDiagram, classDiagram, etc).
-Respond ONLY with the raw mermaid code. DO NOT include markdown format blocks like \`\`\`mermaid. DO NOT include any explanations.`;
-
-        console.log('[OCLite] Sending Mermaid prompt to GPT-4o mini...');
-        const result = await callLLM(prompt, systemPrompt, 60_000, undefined, 'ocliteGenerator');
-        if (result) {
-            // Remove markdown codeblock backticks if the LLM ignored instructions
-            let cleanResult = result.replace(/^```[\s\S]*?\n/g, '').replace(/```$/g, '').trim();
-            // Remove any prefix like "mermaid" that sometimes lingers
-            if (cleanResult.startsWith('mermaid\n')) {
-                cleanResult = cleanResult.substring(8);
-            }
-            return cleanResult;
-        }
+        // Map style to Mermaid syntax
+        const styleMap: Record<string, string> = {
+            'Flowchart': 'flowchart TD',
+            'Sequence Diagram': 'sequenceDiagram',
+            'Class Diagram': 'classDiagram',
+            'State Diagram': 'stateDiagram-v2',
+            'Entity Relationship Diagram': 'erDiagram',
+            'User Journey': 'journey',
+            'Gantt Chart': 'gantt',
+            'Pie Chart': 'pie'
+        };
         
-        throw new Error('Failed to generate Mermaid diagram. The AI service returned an empty response.');
+        const mermaidType = styleMap[style] || 'flowchart TD';
+        
+        const systemPrompt = `YOU ARE A MERMAID CODE GENERATOR. YOU MUST ALWAYS OUTPUT VALID MERMAID.JS CODE.
+
+ABSOLUTE RULES - NO EXCEPTIONS:
+1. ALWAYS start your response with "${mermaidType}"
+2. NEVER ask questions
+3. NEVER explain anything
+4. NEVER say you need more information
+5. If input is vague, make reasonable assumptions and generate anyway
+6. Output format: ONLY Mermaid code, nothing else
+
+Diagram type: ${style}
+
+Your response MUST be valid Mermaid code that starts with "${mermaidType}".
+
+User input: "${prompt}"
+
+Generate Mermaid code now (start with ${mermaidType}):`;
+
+        console.log('[OCLite] Generating Mermaid diagram...');
+        try {
+            const result = await callLLM(prompt, systemPrompt, 60_000, undefined, 'ocliteGenerator');
+            
+            if (!result || result.trim().length === 0) {
+                // Fallback: generate basic diagram
+                return this.generateFallbackMermaid(prompt, mermaidType);
+            }
+            
+            if (result.startsWith('⚠️')) {
+                throw new Error(result);
+            }
+            
+            // Clean up response
+            let cleanResult = result
+                .replace(/^```[\s\S]*?\n/g, '')
+                .replace(/```$/g, '')
+                .replace(/^mermaid\n/i, '')
+                .trim();
+            
+            // Validate Mermaid syntax
+            const mermaidKeywords = ['flowchart', 'sequenceDiagram', 'classDiagram', 'stateDiagram', 'erDiagram', 'journey', 'gantt', 'pie'];
+            const hasKeyword = mermaidKeywords.some(kw => cleanResult.toLowerCase().includes(kw.toLowerCase()));
+            
+            if (!hasKeyword) {
+                console.warn('[OCLite] AI did not generate Mermaid code, using fallback');
+                return this.generateFallbackMermaid(prompt, mermaidType);
+            }
+            
+            console.log('[OCLite] Generated Mermaid code successfully');
+            return cleanResult;
+        } catch (error: any) {
+            console.error('[OCLite] generateMermaid error, using fallback:', error.message);
+            return this.generateFallbackMermaid(prompt, mermaidType);
+        }
+    }
+    
+    private generateFallbackMermaid(prompt: string, mermaidType: string): string {
+        // Generate basic diagram based on prompt keywords
+        const words = prompt.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const mainTopic = words[0] || 'Topic';
+        
+        if (mermaidType === 'flowchart TD') {
+            return `flowchart TD
+    A[Start: ${mainTopic}] --> B[Process]
+    B --> C{Decision}
+    C -->|Yes| D[Action 1]
+    C -->|No| E[Action 2]
+    D --> F[End]
+    E --> F`;
+        } else if (mermaidType === 'sequenceDiagram') {
+            return `sequenceDiagram
+    participant User
+    participant System
+    User->>System: Request ${mainTopic}
+    System->>System: Process
+    System->>User: Response`;
+        } else if (mermaidType === 'classDiagram') {
+            return `classDiagram
+    class ${mainTopic.charAt(0).toUpperCase() + mainTopic.slice(1)} {
+        +property1
+        +property2
+        +method1()
+        +method2()
+    }`;
+        } else if (mermaidType === 'pie') {
+            return `pie title ${mainTopic}
+    "Category A": 40
+    "Category B": 30
+    "Category C": 20
+    "Category D": 10`;
+        } else {
+            return `${mermaidType}
+    [*] --> State1
+    State1 --> State2: ${mainTopic}
+    State2 --> [*]`;
+        }
+    }
+    
+    private getMermaidExample(style: string): string {
+        const examples: Record<string, string> = {
+            'Flowchart': 'flowchart TD\n    A[Start] --> B[Process]\n    B --> C{Decision}\n    C -->|Yes| D[End]\n    C -->|No| B',
+            'Sequence Diagram': 'sequenceDiagram\n    participant A as User\n    participant B as System\n    A->>B: Request\n    B->>A: Response',
+            'Class Diagram': 'classDiagram\n    class Animal {\n        +String name\n        +makeSound()\n    }\n    class Dog {\n        +bark()\n    }\n    Animal <|-- Dog',
+            'State Diagram': 'stateDiagram-v2\n    [*] --> Idle\n    Idle --> Processing\n    Processing --> Complete\n    Complete --> [*]',
+            'Entity Relationship Diagram': 'erDiagram\n    USER ||--o{ ORDER : places\n    ORDER ||--|{ ITEM : contains',
+            'User Journey': 'journey\n    title User Journey\n    section Login\n        Enter credentials: 5: User\n        Verify: 3: System',
+            'Gantt Chart': 'gantt\n    title Project Timeline\n    section Phase 1\n    Task 1: 2024-01-01, 7d\n    Task 2: 2024-01-08, 5d',
+            'Pie Chart': 'pie title Distribution\n    "Category A": 45\n    "Category B": 30\n    "Category C": 25'
+        };
+        
+        return examples[style] || examples['Flowchart'];
     }
 
     /**

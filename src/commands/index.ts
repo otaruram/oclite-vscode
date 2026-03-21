@@ -29,6 +29,21 @@ import { setVsCodeBackground, removeVsCodeBackground, applyThemeFromImage, remov
 export function registerAllCommands(context: vscode.ExtensionContext): void {
     const push = (...d: vscode.Disposable[]) => d.forEach((x) => context.subscriptions.push(x));
 
+    // ── Core OCLite Commands ──────────────────────────────────────────
+    push(
+        vscode.commands.registerCommand('oclite.generateImage', async () => {
+            sendTelemetryEvent('command.generateImage.triggered');
+            // Show the sidebar panel for image generation
+            await vscode.commands.executeCommand('oclite.sidebarView.focus');
+        }),
+
+        vscode.commands.registerCommand('oclite.chatWithAI', async () => {
+            sendTelemetryEvent('command.chatWithAI.triggered');
+            // Show the chat panel
+            await vscode.commands.executeCommand('oclite.chatView.focus');
+        })
+    );
+
     // ── Excalidraw Canvas ─────────────────────────────────────────────
     push(
         vscode.commands.registerCommand('oclite.openCanvas', async () => {

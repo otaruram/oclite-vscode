@@ -19,9 +19,19 @@ export function hashUserId(userId: string): string {
 }
 
 /**
- * Mandatory auth gate — returns session or null if user refuses.
- * Must be called at extension activation; features are blocked without auth.
+ * Optional auth check — returns session or null without blocking extension.
+ * UI features work without auth, but cloud features require sign-in.
  */
+export async function getOptionalMicrosoftAuth(): Promise<vscode.AuthenticationSession | null> {
+    try {
+        // Try to get existing session silently
+        const existing = await vscode.authentication.getSession(MS_AUTH_PROVIDER_ID, MS_AUTH_SCOPES, { silent: true });
+        return existing ?? null;
+    } catch {
+        // No existing session, that's fine
+        return null;
+    }
+}
 export async function requireMicrosoftAuth(): Promise<vscode.AuthenticationSession | null> {
     let session: vscode.AuthenticationSession | null = null;
 

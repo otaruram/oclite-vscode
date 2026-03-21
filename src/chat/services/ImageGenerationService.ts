@@ -30,9 +30,12 @@ export class ImageGenerationService {
         try {
             const response = await axios.post(
                 generatorUrl,
-                { prompt: prompt },
+                { prompt: prompt, apiKey: apiKey, model: model },
                 {
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
                     timeout: 120000, // 2 minutes for image generation
                     cancelToken: new axios.CancelToken((c) => token.onCancellationRequested(() => c())),
                 }
@@ -40,32 +43,64 @@ export class ImageGenerationService {
             
             console.log(`[OCLite] Generate OK: HTTP ${response.status} | ${JSON.stringify(response.data).substring(0, 200)}`);
             
-            let imageUrl = null;
-            if (response.data.status === 'succeeded' && response.data.images && response.data.images.length > 0) {
-                imageUrl = response.data.images[0];
-            } else if (response.data.output && response.data.output.length > 0) {
-                // Legacy format support
-                imageUrl = response.data.output[0];
+            let imageUrl: any = null;
+            
+            // Check for image URL in various response formats
+            if (response.data.status === 'succeeded') {
+                // Format 1: images array with URL
+                if (response.data.images && response.data.images.length > 0) {
+                    const img = response.data.images[0];
+                    if (typeof img === 'string') {
+                        imageUrl = img;
+                    } else if (img && typeof img === 'object' && img.url) {
+                        imageUrl = img.url;
+                    }
+                }
+                
+                // Format 2: direct image_url field
+                if (!imageUrl && response.data.image_url) {
+                    imageUrl = response.data.image_url;
+                }
+                
+                // Format 3: output array (legacy)
+                if (!imageUrl && response.data.output && response.data.output.length > 0) {
+                    imageUrl = response.data.output[0];
+                }
             }
             
             if (!imageUrl) {
-                console.error('[OCLite] No image URL in response:', JSON.stringify(response.data));
-                throw new Error('No image URL in response');
+                console.error('[OCLite] No valid image URL in response:', JSON.stringify(response.data));
+                console.error('[OCLite] Response structure:', {
+                    status: response.data.status,
+                    hasImages: !!response.data.images,
+                    imagesLength: response.data.images?.length,
+                    firstImage: response.data.images?.[0],
+                    hasImageUrl: !!response.data.image_url,
+                    hasOutput: !!response.data.output
+                });
+                throw new Error('HttpTrigger1 did not return a valid image URL. Please check Azure Function logs.');
             }
+            
+            // Ensure imageUrl is a string before validation
+            const imageUrlStr = String(imageUrl);
             
             // Validate the URL
-            if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-                console.error('[OCLite] Invalid image URL format:', imageUrl);
-                throw new Error(`Invalid image URL format: ${imageUrl}`);
+            if (!imageUrlStr || imageUrlStr === 'undefined' || imageUrlStr === 'null') {
+                throw new Error('Image URL is empty or invalid');
             }
             
-            console.log(`[OCLite] Generated image URL: ${imageUrl}`);
+            if (!imageUrlStr.startsWith('http://') && !imageUrlStr.startsWith('https://')) {
+                console.error('[OCLite] Invalid image URL format:', imageUrlStr);
+                throw new Error(`Invalid image URL format: ${imageUrlStr}`);
+            }
+            
+            console.log(`[OCLite] Generated image URL: ${imageUrlStr}`);
             sendTelemetryEvent('image.generation.success', { 
                 model, 
                 promptLength: prompt.length.toString() 
             });
             
-            return imageUrl;
+            return imageUrlStr;
             
         } catch (err: any) {
             const status = err.response?.status;
@@ -88,13 +123,14 @@ export class ImageGenerationService {
         console.log(`[OCLite] Downloading image from: ${imageUrl}`);
         console.log(`[OCLite] Prompt: ${prompt.substring(0, 50)}...`);
         
-        // Validate URL before attempting download
-        if (!imageUrl || !imageUrl.startsWith('http')) {
-            throw new Error(`Invalid image URL: ${imageUrl}`);
+        // Ensure imageUrl is a string and validate
+        const imageUrlStr = String(imageUrl || '');
+        if (!imageUrlStr || !imageUrlStr.startsWith('http')) {
+            throw new Error(`Invalid image URL: ${imageUrlStr}`);
         }
         
         try {
-            const response = await axios.get(imageUrl, { 
+            const response = await axios.get(imageUrlStr, { 
                 responseType: 'arraybuffer', 
                 timeout: 90000, // 90s — generation URLs can be slow to serve
                 headers: {

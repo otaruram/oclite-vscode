@@ -14,3 +14,32 @@ webpack/
 **/__mocks__/*
 Oclite-1/
 Oclite-1/**
+
+# Exclude files with secrets/keys
+test-*.js
+*-test.js
+*_MANUAL.md
+*_GUIDE.md
+*_STATUS.md
+*_RESULTS.md
+*_EXPLANATION.md
+*_SETUP.md
+*_COMPLETE.md
+*.ps1
+fix-*.md
+clean-*.md
+republish-*.md
+publish-*.md
+
+# Exclude internal dev scripts
+/*.js
+!/webpack.config.js
+/*.ps1
+/*.html
+
+# Exclude internal documentation (to prevent secret leaks)
+/*.md
+!/README.md
+!/CHANGELOG.md
+!/CONTRIBUTING.md
+!/SECURITY.md

@@ -12,7 +12,7 @@ import { ChatProvider } from './panels/ChatProvider';
 import { AgentOrchestrator } from './agents/AgentOrchestrator';
 import { initializeTelemetry, sendTelemetryEvent } from './services/telemetry';
 import { initializeBlobStorage } from './services/blobStorage';
-import { requireMicrosoftAuth } from './services/auth';
+import { getOptionalMicrosoftAuth } from './services/auth';
 import { OCLiteChatParticipant } from './chat/OCLiteChatParticipant';
 import { registerAllCommands } from './commands';
 import { getOcliteApiKey, getOcliteApiUrl, getOclitePollUrl } from './utilities/secrets';
@@ -24,45 +24,38 @@ import { ILLMService, ITelemetryService } from './interfaces/types';
 export async function activate(context: vscode.ExtensionContext) {
     console.log('[OCLite] Extension activating...');
 
-    // STEP 1: Microsoft auth gate (mandatory)
-    const msSession = await requireMicrosoftAuth();
-    if (!msSession) {
-        return; // Auth required — extension stays dormant
-    }
-
-    vscode.window.showInformationMessage(`✅ Welcome, ${msSession.account.label}! OCLite is ready.`);
-    sendTelemetryEvent('auth.gate.passed', { user: msSession.account.label });
-
-    // STEP 2: Core services
+    // STEP 1: Initialize core services (always available)
     const aiService = new AIService(context);
 
-    // STEP 3: Chat participant (@oclite)
-    const chatParticipant = new OCLiteChatParticipant(context, aiService);
-    chatParticipant.register();
-
-    // STEP 4: All commands (sharing, gallery, storage, auth, etc.)
-    registerAllCommands(context);
-
-    // STEP 5: Webview providers
+    // STEP 2: Register webview providers FIRST (before auth gate)
     const sidebarProvider = new SidebarProvider(context.extensionUri, aiService);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider)
     );
 
-    // Adapters to satisfy ILLMService / ITelemetryService interfaces
-    const llmService: ILLMService = {
-        callLLM: (userMessage, systemPrompt, timeoutMs, imageUrl) =>
-            callLLM(userMessage, systemPrompt, timeoutMs, imageUrl),
-    };
-    const telemetryService: ITelemetryService = {
-        sendTelemetryEvent: (eventName, properties, measurements) =>
-            sendTelemetryEvent(eventName, properties, measurements),
-    };
-
     const chatProvider = new ChatProvider(context.extensionUri, context);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ChatProvider.viewType, chatProvider)
     );
+
+    // STEP 3: Register all commands (always available)
+    registerAllCommands(context);
+
+    // STEP 4: Optional Microsoft auth (for cloud features only)
+    const msSession = await getOptionalMicrosoftAuth();
+    if (msSession) {
+        vscode.window.showInformationMessage(`✅ Welcome, ${msSession.account.label}! OCLite is ready.`);
+        sendTelemetryEvent('auth.gate.passed', { user: msSession.account.label });
+        
+        // Initialize cloud services after auth
+        await initializeBlobStorage();
+    } else {
+        vscode.window.showInformationMessage('OCLite UI is ready. Sign in for cloud features.');
+    }
+
+    // STEP 5: Chat participant (@oclite) - always available
+    const chatParticipant = new OCLiteChatParticipant(context, aiService);
+    chatParticipant.register();
 
     // STEP 6: Agent command (right-click → Analyze & Generate)
     context.subscriptions.push(
@@ -85,7 +78,6 @@ export async function activate(context: vscode.ExtensionContext) {
     // STEP 7: Background services
     initializeTelemetry(context);
     sendTelemetryEvent('extension.activated');
-    await initializeBlobStorage();
 
     // STEP 8: Diagnostic command
     context.subscriptions.push(
