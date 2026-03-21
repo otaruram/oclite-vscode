@@ -2,7 +2,7 @@
   "name": "oclite-vscode",
   "displayName": "OCLite - AI Image Generator & Gallery",
   "description": "AI-powered image generation with instant gallery, cloud storage, and secure sharing. Generate game assets, UI mockups, and art with SDXL, Flux, and GPT-4o mini.",
-  "version": "0.1.62",
+  "version": "0.1.63",
   "publisher": "oclitesite",
   "icon": "assets/icon.png",
   "galleryBanner": {

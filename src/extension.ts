@@ -16,8 +16,7 @@ import { getOptionalMicrosoftAuth } from './services/auth';
 import { OCLiteChatParticipant } from './chat/OCLiteChatParticipant';
 import { registerAllCommands } from './commands';
 import { getOcliteApiKey, getOcliteApiUrl, getOclitePollUrl } from './utilities/secrets';
-import { callLLM } from './services/llm';
-import { ILLMService, ITelemetryService } from './interfaces/types';
+import { restoreBackgroundOnActivation } from './services/backgroundInjector';
 
 // ── Activate ───────────────────────────────────────────────────────────────
 
@@ -26,6 +25,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // STEP 1: Initialize core services (always available)
     const aiService = new AIService(context);
+
+    // STEP 1.5: Restore background injection (if previously applied)
+    await restoreBackgroundOnActivation(context);
 
     // STEP 2: Register webview providers FIRST (before auth gate)
     const sidebarProvider = new SidebarProvider(context.extensionUri, aiService);

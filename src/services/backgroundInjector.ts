@@ -154,12 +154,49 @@ export async function applyThemeFromImage(imageUrl: string, context: vscode.Exte
             vscode.ConfigurationTarget.Global
         );
 
-        // ── Step 2: Inject editor background image (CSS) ─────────────────
-        const cssPath = getCssPath();
-        if (cssPath && imageUrl && imageUrl.startsWith('http')) {
-            let css = fs.readFileSync(cssPath, 'utf-8');
-            css = removeAllInjections(css);
-            css += `
+        // ── Step 2: Store image URL for auto-restore ─────────────────────
+        await context.globalState.update('oclite.backgroundImageUrl', imageUrl);
+        await context.globalState.update(THEME_MARKER_KEY, true);
+        await context.globalState.update('oclite.themeIndex', nextIdx);
+
+        // ── Step 3: Inject editor background image (CSS) ─────────────────
+        const injected = await injectBackgroundCss(imageUrl);
+        
+        if (injected) {
+            const action = await vscode.window.showInformationMessage(
+                `✨ Immersed: ${p.name} — restart to see editor background.`,
+                'Restart Now', 'Later'
+            );
+            if (action === 'Restart Now') { vscode.commands.executeCommand('workbench.action.reloadWindow'); }
+        }
+
+        sendTelemetryEventSafe('command.immerse.success');
+        return true;
+    } catch (e: any) {
+        vscode.window.showErrorMessage(`❌ OCLite Immerse failed. Try running as Administrator. Error: ${e.message}`);
+        return false;
+    }
+}
+
+/**
+ * Inject background CSS to VS Code workbench
+ */
+async function injectBackgroundCss(imageUrl: string): Promise<boolean> {
+    const cssPath = getCssPath();
+    if (!cssPath) {
+        console.warn('[OCLite] Could not locate VS Code CSS file for background injection');
+        return false;
+    }
+    
+    if (!imageUrl || !imageUrl.startsWith('http')) {
+        console.warn('[OCLite] Invalid image URL for background injection');
+        return false;
+    }
+    
+    try {
+        let css = fs.readFileSync(cssPath, 'utf-8');
+        css = removeAllInjections(css);
+        css += `
 ${CSS_START}
 .monaco-workbench .part.editor > .content {
     background-image: linear-gradient(rgba(10,10,20,0.82), rgba(10,10,20,0.82)), url('${imageUrl}') !important;
@@ -179,23 +216,30 @@ ${CSS_START}
 }
 ${CSS_END}
 `;
-            fs.writeFileSync(cssPath, css, 'utf-8');
-        }
-
-        await context.globalState.update(THEME_MARKER_KEY, true);
-        await context.globalState.update('oclite.themeIndex', nextIdx);
-
-        const action = await vscode.window.showInformationMessage(
-            `✨ Immersed: ${p.name} — restart to see editor background.`,
-            'Restart Now', 'Later'
-        );
-        if (action === 'Restart Now') { vscode.commands.executeCommand('workbench.action.reloadWindow'); }
-
-        sendTelemetryEventSafe('command.immerse.success');
+        fs.writeFileSync(cssPath, css, 'utf-8');
+        console.log('[OCLite] Background CSS injected successfully');
         return true;
     } catch (e: any) {
-        vscode.window.showErrorMessage(`❌ OCLite Immerse failed. Try running as Administrator. Error: ${e.message}`);
+        console.error('[OCLite] Failed to inject background CSS:', e.message);
         return false;
+    }
+}
+
+/**
+ * Restore background on extension activation (auto-restore after VS Code restart)
+ */
+export async function restoreBackgroundOnActivation(context: vscode.ExtensionContext): Promise<void> {
+    try {
+        const isThemeApplied = context.globalState.get<boolean>(THEME_MARKER_KEY, false);
+        const imageUrl = context.globalState.get<string>('oclite.backgroundImageUrl');
+        
+        if (isThemeApplied && imageUrl) {
+            console.log('[OCLite] Restoring background on activation...');
+            await injectBackgroundCss(imageUrl);
+            console.log('[OCLite] Background restored successfully');
+        }
+    } catch (e: any) {
+        console.error('[OCLite] Failed to restore background on activation:', e.message);
     }
 }
 
