@@ -2,7 +2,7 @@
   "name": "oclite-vscode",
   "displayName": "Pixie - AI Image Generator & Gallery",
   "description": "AI-powered image generation with instant gallery, cloud storage, and secure sharing. Generate game assets, UI mockups, and art with SDXL, Flux, and GPT-4o mini.",
-  "version": "0.1.70",
+  "version": "0.1.71",
   "publisher": "oclitesite",
   "icon": "assets/icon.png",
   "galleryBanner": {
