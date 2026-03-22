@@ -77,7 +77,7 @@ export function generateSecureBlobUrl(containerName: string, blobName: string): 
 /**
  * Add secure URLs to gallery images
  */
-export function addSecureUrlsToGalleryImages(images: GalleryImage[], containerName: string = 'oclite-gallery'): GalleryImage[] {
+export function addSecureUrlsToGalleryImages(images: GalleryImage[], containerName: string = 'oclite-images'): GalleryImage[] {
     return images.map(image => {
         try {
             // Extract blob name from the image name or URL

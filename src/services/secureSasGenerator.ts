@@ -85,7 +85,7 @@ export function generateGalleryImageUrl(accountName: string, accountKey: string,
     return generateSecureBlobSasUrl({
         accountName,
         accountKey,
-        containerName: 'oclite-gallery',
+        containerName: 'oclite-images', // Changed for security
         blobName,
         permissions: 'r', // read-only
         expiryHours: 1    // 1 hour expiry

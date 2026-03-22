@@ -82,6 +82,11 @@ export class ChatProvider implements vscode.WebviewViewProvider {
             case 'clearHistory':     await this.handleClearHistory(); break;
             case 'exportHistory':    await this.handleExportHistory(); break;
             case 'getSessionList':   await this.handleGetSessionList(); break;
+            case 'previewImage':     await this.handlePreviewImage(data.path); break;
+            case 'saveImage':        await this.handleSaveImage(data.path, data.prompt); break;
+            case 'viewGallery':      await this.handleViewGallery(); break;
+            case 'copyLink':         await this.handleCopyLink(data.url, data.blobName); break;
+            case 'generateVariations': await this.handleGenerateVariations(data.prompt); break;
         }
     }
 
@@ -206,7 +211,231 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 
     private async handleGenerateImage(prompt: string): Promise<void> {
         sendTelemetryEvent('chat.image.generation.triggered');
-        await vscode.commands.executeCommand('workbench.action.chat.open', { query: `@oclite ${prompt}` });
+        
+        if (!this._view) {
+            vscode.window.showWarningMessage('Chat panel is not open.');
+            return;
+        }
+
+        // Show generating message
+        this._view.webview.postMessage({ 
+            type: 'addResponse', 
+            value: `🎨 Generating image: "${prompt}"\n\n⏳ Please wait...` 
+        });
+
+        try {
+            const { getHttpTrigger1Url, getHttpTrigger2Url, getHttpTrigger4Url, getOcliteApiKey } = require('../utilities/secrets');
+            const axios = require('axios');
+            
+            const apiKey = getOcliteApiKey();
+            if (!apiKey) {
+                throw new Error('OCLite API key not configured');
+            }
+
+            // STEP 1: Refine prompt with HttpTrigger2
+            this._view.webview.postMessage({ 
+                type: 'addResponse', 
+                value: `🤖 Refining prompt...` 
+            });
+            
+            const trigger2Url = getHttpTrigger2Url();
+            const refineResponse = await axios.post(
+                trigger2Url,
+                { prompt: prompt, type: 'chatParticipant' },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 30000,
+                }
+            );
+            
+            const refinedPrompt = refineResponse.data.response || refineResponse.data.message || prompt;
+            
+            this._view.webview.postMessage({ 
+                type: 'addResponse', 
+                value: `✨ Refined: _${refinedPrompt}_` 
+            });
+
+            // STEP 2: Generate image with HttpTrigger1
+            this._view.webview.postMessage({ 
+                type: 'addResponse', 
+                value: `🖼️ Generating image...` 
+            });
+            
+            const trigger1Url = getHttpTrigger1Url();
+            const generateResponse = await axios.post(
+                trigger1Url,
+                { prompt: refinedPrompt },
+                {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-oclite-signature': `oclite-${Date.now()}`,
+                        'x-oclite-timestamp': Date.now().toString()
+                    },
+                    timeout: 120000,
+                }
+            );
+            
+            if (generateResponse.data.status !== 'succeeded' || !generateResponse.data.imageData) {
+                throw new Error('Image generation failed');
+            }
+            
+            const imageBase64 = generateResponse.data.imageData;
+
+            // STEP 3: Upload to blob with HttpTrigger4
+            this._view.webview.postMessage({ 
+                type: 'addResponse', 
+                value: `☁️ Uploading to cloud storage...` 
+            });
+            
+            const trigger4Url = getHttpTrigger4Url();
+            const uploadResponse = await axios.post(
+                trigger4Url,
+                { 
+                    imageData: imageBase64, 
+                    prompt: refinedPrompt,
+                    model: 'sdxl-lightning'
+                },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 60000,
+                }
+            );
+            
+            if (uploadResponse.data.status !== 'success' || !uploadResponse.data.sasUrl) {
+                throw new Error('Cloud upload failed');
+            }
+            
+            const sasUrl = uploadResponse.data.sasUrl;
+            const blobName = uploadResponse.data.blobName;
+
+            // Store in gallery
+            await this.storeInGallery(sasUrl, refinedPrompt, blobName);
+
+            // Download to temp for preview
+            const tempPath = await this.downloadImageToTemp(sasUrl, refinedPrompt);
+
+            // Show success with action buttons
+            this._view.webview.postMessage({ 
+                type: 'imageGenerated', 
+                imageUrl: sasUrl,
+                tempPath: tempPath,
+                prompt: refinedPrompt,
+                blobName: blobName
+            });
+
+            sendTelemetryEvent('chat.image.generation.success', {
+                promptLength: prompt.length.toString(),
+                flow: 'complete'
+            });
+
+        } catch (error: any) {
+            console.error('[OCLite] Image generation error:', error);
+            this._view.webview.postMessage({ 
+                type: 'addResponse', 
+                value: `❌ Generation failed: ${error.message}` 
+            });
+            
+            sendTelemetryEvent('chat.image.generation.error', {
+                error: error.message
+            });
+        }
+    }
+
+    private async storeInGallery(sasUrl: string, prompt: string, blobName: string): Promise<void> {
+        try {
+            const galleryItems = this.context.globalState.get<any[]>('oclite.galleryItems', []);
+            
+            const newItem = {
+                url: sasUrl,
+                shareUrl: sasUrl,
+                name: blobName,
+                originalPrompt: prompt,
+                model: 'sdxl-lightning',
+                lastModified: new Date().toISOString(),
+                timestamp: Date.now()
+            };
+            
+            galleryItems.unshift(newItem);
+
+            if (galleryItems.length > 100) {
+                galleryItems.splice(100);
+            }
+
+            await this.context.globalState.update('oclite.galleryItems', galleryItems);
+            console.log(`[OCLite] Stored in gallery: ${blobName}`);
+        } catch (error: any) {
+            console.error('[OCLite] Failed to store in gallery:', error);
+        }
+    }
+
+    private async downloadImageToTemp(sasUrl: string, prompt: string): Promise<string> {
+        const axios = require('axios');
+        const fs = require('fs');
+        const path = require('path');
+        const os = require('os');
+
+        const response = await axios.get(sasUrl, { 
+            responseType: 'arraybuffer', 
+            timeout: 90000 
+        });
+        
+        const tempDir = path.join(os.tmpdir(), 'oclite');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        const slug = prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        const tempPath = path.join(tempDir, `${slug}_${Date.now()}.png`);
+        
+        const buffer = Buffer.from(response.data);
+        fs.writeFileSync(tempPath, buffer);
+        
+        return tempPath;
+    }
+
+    private async handlePreviewImage(imagePath: string): Promise<void> {
+        await vscode.commands.executeCommand('oclite.previewImage', imagePath);
+    }
+
+    private async handleSaveImage(tempPath: string, prompt: string): Promise<void> {
+        await vscode.commands.executeCommand('oclite.saveImage', tempPath, prompt);
+    }
+
+    private async handleViewGallery(): Promise<void> {
+        await vscode.commands.executeCommand('oclite.viewGallery');
+    }
+
+    private async handleCopyLink(url: string, blobName: string): Promise<void> {
+        await vscode.commands.executeCommand('oclite.copyShareLink', url, blobName);
+    }
+
+    private async handleGenerateVariations(prompt: string): Promise<void> {
+        // Generate 3 variations by calling generateImage 3 times
+        if (!this._view) {
+            return;
+        }
+
+        this._view.webview.postMessage({ 
+            type: 'addResponse', 
+            value: `🔄 Generating 3 variations of: "${prompt}"\n\nPlease wait...` 
+        });
+
+        for (let i = 1; i <= 3; i++) {
+            this._view.webview.postMessage({ 
+                type: 'addResponse', 
+                value: `\n🎨 Variation ${i}/3...` 
+            });
+            
+            await this.handleGenerateImage(prompt);
+            
+            // Small delay between generations
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        this._view.webview.postMessage({ 
+            type: 'addResponse', 
+            value: `\n✅ All 3 variations completed!` 
+        });
     }
 
     private async handleSwitchToParticipant(): Promise<void> {

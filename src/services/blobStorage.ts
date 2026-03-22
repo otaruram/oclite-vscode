@@ -32,7 +32,7 @@ function sanitizeMetadata(value: string, maxLen = 1024): string {
 export type { GalleryImage } from '../types';
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const CONTAINER_NAME = 'oclite-gallery';
+const CONTAINER_NAME = 'oclite-images'; // Changed for security - uses HttpTrigger4 SAS
 const MS_AUTH_PROVIDER_ID = 'microsoft';
 const MS_AUTH_SCOPES = ['https://graph.microsoft.com/User.Read'];
 

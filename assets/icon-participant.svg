@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-  <!-- Spark / wand — AI generation concept -->
-  <path d="M12 2 L13.5 8 L19 6 L14.5 10.5 L20 12 L14.5 13.5 L19 18 L13.5 16 L12 22 L10.5 16 L5 18 L9.5 13.5 L4 12 L9.5 10.5 L5 6 L10.5 8 Z"
-        fill="#8b5cf6" opacity="0.9"/>
-  <!-- Small dot accent -->
-  <circle cx="19" cy="5" r="1.5" fill="#6366f1" opacity="0.7"/>
-  <circle cx="5" cy="19" r="1" fill="#6366f1" opacity="0.5"/>
-</svg>

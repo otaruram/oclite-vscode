@@ -29,14 +29,14 @@ function delay(ms: number): Promise<void> {
  *
  * @param imageBuffer - Raw PNG/JPEG bytes
  * @param fileName    - Desired file name (e.g. "2025-01-01_oclite_sunset.png")
- * @param folder      - Remote folder path (e.g. "/oclite-gallery/user123")
+ * @param folder      - Remote folder path (e.g. "/oclite-images/user123")
  * @param tags        - Optional tags for organisation
  * @returns Public ImageKit CDN URL + metadata, or null on failure
  */
 export async function uploadToImageKit(
     imageBuffer: Buffer,
     fileName: string,
-    folder: string = '/oclite-gallery',
+    folder: string = '/oclite-images', // Changed for security
     tags: string[] = ['oclite', 'ai-generated'],
 ): Promise<ImageKitUploadResult | null> {
     const base64File = imageBuffer.toString('base64');

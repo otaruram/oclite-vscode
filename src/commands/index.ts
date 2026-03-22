@@ -29,6 +29,36 @@ import { setVsCodeBackground, removeVsCodeBackground, applyThemeFromImage, remov
 export function registerAllCommands(context: vscode.ExtensionContext): void {
     const push = (...d: vscode.Disposable[]) => d.forEach((x) => context.subscriptions.push(x));
 
+    // ── Status Bar Item ────────────────────────────────────────────────
+    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    statusBarItem.command = 'oclite.showStats';
+    statusBarItem.tooltip = 'OCLite Statistics (Click to view)';
+    
+    // Update status bar with login status and gallery count
+    const updateStatusBar = () => {
+        const user = getCurrentUser();
+        if (user) {
+            // Signed in - show stats
+            const cachedItems = context.globalState.get<any[]>('oclite.galleryItems', []);
+            const count = cachedItems.length;
+            statusBarItem.text = `$(cloud) OCLite: ${count}`;
+            statusBarItem.tooltip = `OCLite: ${count} images (${user.label})`;
+        } else {
+            // Not signed in - show sign in prompt
+            statusBarItem.text = `$(sign-in) OCLite`;
+            statusBarItem.tooltip = 'OCLite: Click to sign in';
+            statusBarItem.command = 'oclite.signInMicrosoft';
+        }
+        statusBarItem.show();
+    };
+    
+    updateStatusBar();
+    context.subscriptions.push(statusBarItem);
+    
+    // Update status bar every 30 seconds
+    const statusInterval = setInterval(updateStatusBar, 30000);
+    context.subscriptions.push({ dispose: () => clearInterval(statusInterval) });
+
     // ── Core OCLite Commands ──────────────────────────────────────────
     push(
         vscode.commands.registerCommand('oclite.generateImage', async () => {
@@ -41,7 +71,8 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
             sendTelemetryEvent('command.chatWithAI.triggered');
             // Show the chat panel
             await vscode.commands.executeCommand('oclite.chatView.focus');
-        })
+        }),
+
     );
 
     // ── Excalidraw Canvas ─────────────────────────────────────────────
@@ -250,84 +281,136 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand('oclite.signInMicrosoft', async () => {
             sendTelemetryEvent('command.signIn.triggered');
             const session = await signInMicrosoft();
-            if (session) await initializeBlobStorage();
+            if (session) {
+                await initializeBlobStorage();
+                vscode.window.showInformationMessage('✅ Signed in! Cloud storage enabled.');
+            }
         }),
 
         vscode.commands.registerCommand('oclite.signOut', async () => {
             await signOutUser();
+            vscode.window.showInformationMessage('👋 Signed out. Local storage still available.');
             sendTelemetryEvent('command.signOut.triggered');
-        }),
-
-        vscode.commands.registerCommand('oclite.clearApiKey', async () => {
-            vscode.window.showInformationMessage('API key is auto-configured and cannot be cleared.');
-        }),
-
-        vscode.commands.registerCommand('oclite.setApiKey', async () => {
-            vscode.window.showInformationMessage('✅ API key is auto-configured. No manual setup needed!');
         })
     );
 
     // ── Storage / Telemetry config ─────────────────────────────────────
-    push(
-        vscode.commands.registerCommand('oclite.configureStorage', async () => {
-            sendTelemetryEvent('command.configureStorage.triggered');
-            vscode.window.showInformationMessage('✅ Cloud storage is automatically configured. Sign in with Microsoft to use cloud features.');
-        }),
-
-        vscode.commands.registerCommand('oclite.clearStorageSettings', async () => {
-            const ok = await vscode.window.showWarningMessage(
-                '🗑️ This will clear your storage session and disable cloud features.',
-                'Clear Session',
-                'Cancel'
-            );
-            if (ok === 'Clear Session') {
-                await clearStorageSettings();
-                sendTelemetryEvent('command.clearStorageSettings.executed');
-            }
-        }),
-
-        vscode.commands.registerCommand('oclite.configureTelemetry', async () => {
-            vscode.window.showInformationMessage('✅ Telemetry is automatically configured.');
-        })
-    );
+    // Removed unused commands: configureStorage, clearStorageSettings, configureTelemetry
+    // These were auto-configured and not needed by users
 
     // ── Status / Stats ─────────────────────────────────────────────────
     push(
+        // Show detailed stats when clicking status bar - REQUIRES LOGIN
+        vscode.commands.registerCommand('oclite.showStats', async () => {
+            const user = getCurrentUser();
+            if (!user) {
+                const action = await vscode.window.showWarningMessage(
+                    '⚠️ Please sign in with Microsoft to view statistics.',
+                    'Sign In', 'Cancel'
+                );
+                if (action === 'Sign In') {
+                    await vscode.commands.executeCommand('oclite.signInMicrosoft');
+                }
+                return;
+            }
+            
+            if (!isBlobStorageAvailable()) {
+                vscode.window.showWarningMessage('⚠️ Cloud storage not available. Please try signing in again.');
+                return;
+            }
+            
+            await vscode.window.withProgress(
+                { location: vscode.ProgressLocation.Notification, title: 'Loading statistics...' },
+                async () => {
+                    try {
+                        const stats = await getSharingStats();
+                        const mb = (stats.totalSize / (1024 * 1024)).toFixed(2);
+                        const oldest = stats.oldestImage ? stats.oldestImage.toLocaleDateString() : 'N/A';
+                        
+                        vscode.window.showInformationMessage(
+                            `📊 ${user.label}\n🖼️ Images: ${stats.totalImages}\n💾 Storage: ${mb} MB\n📅 Oldest: ${oldest}`,
+                            'View Gallery', 'Close'
+                        ).then(selection => {
+                            if (selection === 'View Gallery') {
+                                vscode.commands.executeCommand('oclite.viewGallery');
+                            }
+                        });
+                        
+                        sendTelemetryEvent('command.showStats.viewed', {
+                            imageCount: stats.totalImages.toString(),
+                            storageUsedMB: mb,
+                        });
+                    } catch (e: any) {
+                        vscode.window.showErrorMessage(`Failed to load statistics: ${e.message}`);
+                    }
+                }
+            );
+        }),
+
+        // Rate limit status - REQUIRES LOGIN
         vscode.commands.registerCommand('oclite.rateLimitStatus', async () => {
             const user = getCurrentUser();
             if (!user) {
-                vscode.window.showWarningMessage('⚠️ Please sign in to view rate limit status.');
+                const action = await vscode.window.showWarningMessage(
+                    '⚠️ Please sign in with Microsoft to view rate limit status.',
+                    'Sign In', 'Cancel'
+                );
+                if (action === 'Sign In') {
+                    await vscode.commands.executeCommand('oclite.signInMicrosoft');
+                }
                 return;
             }
+            
             const status = getRateLimitStatus();
             if (status) {
                 const mins = Math.ceil((status.resetTime - Date.now()) / 60000);
                 vscode.window.showInformationMessage(
                     `⚡ Rate Limit: ${status.remaining} remaining — resets in ${mins > 0 ? mins + ' min' : 'now'}`
                 );
+            } else {
+                vscode.window.showInformationMessage('⚡ Rate Limit: No limits applied');
             }
             sendTelemetryEvent('command.rateLimitStatus.viewed');
         }),
 
+        // Sharing stats - REQUIRES LOGIN
         vscode.commands.registerCommand('oclite.sharingStats', async () => {
             const user = getCurrentUser();
             if (!user) {
-                vscode.window.showWarningMessage('⚠️ Please sign in to view sharing statistics.');
+                const action = await vscode.window.showWarningMessage(
+                    '⚠️ Please sign in with Microsoft to view sharing statistics.',
+                    'Sign In', 'Cancel'
+                );
+                if (action === 'Sign In') {
+                    await vscode.commands.executeCommand('oclite.signInMicrosoft');
+                }
                 return;
             }
-            vscode.window.withProgress(
+            
+            if (!isBlobStorageAvailable()) {
+                vscode.window.showWarningMessage('⚠️ Cloud storage not available. Please try signing in again.');
+                return;
+            }
+            
+            await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: 'Loading sharing statistics...' },
                 async () => {
-                    const stats = await getSharingStats();
-                    const mb = (stats.totalSize / (1024 * 1024)).toFixed(2);
-                    const oldest = stats.oldestImage ? stats.oldestImage.toLocaleDateString() : 'N/A';
-                    vscode.window.showInformationMessage(
-                        `📊 ${user.label}: ${stats.totalImages} images, ${mb} MB, oldest ${oldest}`
-                    );
-                    sendTelemetryEvent('command.sharingStats.viewed', {
-                        imageCount: stats.totalImages.toString(),
-                        storageUsedMB: mb,
-                    });
+                    try {
+                        const stats = await getSharingStats();
+                        const mb = (stats.totalSize / (1024 * 1024)).toFixed(2);
+                        const oldest = stats.oldestImage ? stats.oldestImage.toLocaleDateString() : 'N/A';
+                        
+                        vscode.window.showInformationMessage(
+                            `📊 ${user.label}: ${stats.totalImages} images, ${mb} MB, oldest ${oldest}`
+                        );
+                        
+                        sendTelemetryEvent('command.sharingStats.viewed', {
+                            imageCount: stats.totalImages.toString(),
+                            storageUsedMB: mb,
+                        });
+                    } catch (e: any) {
+                        vscode.window.showErrorMessage(`Failed to load sharing stats: ${e.message}`);
+                    }
                 }
             );
         })

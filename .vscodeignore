@@ -15,6 +15,10 @@ webpack/
 Oclite-1/
 Oclite-1/**
 
+# Exclude source maps (large files)
+**/*.map
+*.map
+
 # Exclude files with secrets/keys
 test-*.js
 *-test.js

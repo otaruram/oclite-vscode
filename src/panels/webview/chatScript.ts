@@ -15,6 +15,9 @@ export function getChatScript(): string {
             try { vscode.postMessage(msg); } catch(e) { console.error('[OCLite] postMessage error', e); }
         }
 
+        // Make post available globally for onclick handlers
+        window.post = post;
+
         var chatDiv        = document.getElementById('chat');
         var promptEl       = document.getElementById('prompt');
         var sendBtn        = document.getElementById('sendBtn');
@@ -257,6 +260,30 @@ export function getChatScript(): string {
                 var div = document.createElement('div');
                 div.className = 'msg ai';
                 div.innerHTML = '<div class="label">OCLite</div>' + renderAIContent(msg.value || '(no response)');
+                chatDiv.appendChild(div);
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+                promptEl.disabled = false; sendBtn.disabled = false; promptEl.focus();
+            }
+            else if (msg.type === 'imageGenerated') {
+                var t = document.getElementById('typing');
+                if (t) { t.remove(); }
+                
+                // Create result div with image and action buttons
+                var div = document.createElement('div');
+                div.className = 'msg ai';
+                div.innerHTML = '<div class="label">OCLite</div>' +
+                    '<div style="margin-bottom:12px">' +
+                    '<strong>\\u2705 Image Generated!</strong><br>' +
+                    '<em style="opacity:0.8">' + esc(msg.prompt) + '</em>' +
+                    '</div>' +
+                    '<img src="' + msg.imageUrl + '" style="max-width:100%;border-radius:8px;margin-bottom:12px;cursor:pointer" onclick="post({type:\\'previewImage\\',path:\\''+msg.imageUrl+'\\'})" />' +
+                    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+                    '<button class="action-btn" onclick="post({type:\\'previewImage\\',path:\\''+msg.tempPath+'\\'})" style="flex:1;min-width:100px;padding:8px;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);border:1px solid var(--vscode-button-border);border-radius:4px;cursor:pointer">\\uD83D\\uDC41\\uFE0F Preview</button>' +
+                    '<button class="action-btn" onclick="post({type:\\'saveImage\\',path:\\''+msg.tempPath+'\\',prompt:\\''+esc(msg.prompt)+'\\'})" style="flex:1;min-width:100px;padding:8px;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);border:1px solid var(--vscode-button-border);border-radius:4px;cursor:pointer">\\uD83D\\uDCBE Save</button>' +
+                    '<button class="action-btn" onclick="post({type:\\'viewGallery\\'})" style="flex:1;min-width:100px;padding:8px;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);border:1px solid var(--vscode-button-border);border-radius:4px;cursor:pointer">\\uD83D\\uDDBC\\uFE0F Gallery</button>' +
+                    '<button class="action-btn" onclick="post({type:\\'copyLink\\',url:\\''+msg.imageUrl+'\\',blobName:\\''+msg.blobName+'\\'})" style="flex:1;min-width:100px;padding:8px;background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground);border:1px solid var(--vscode-button-border);border-radius:4px;cursor:pointer">\\uD83D\\uDCCB Link</button>' +
+                    '<button class="action-btn" onclick="post({type:\\'generateVariations\\',prompt:\\''+esc(msg.prompt)+'\\'})" style="flex:1;min-width:100px;padding:8px;background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:1px solid var(--vscode-button-border);border-radius:4px;cursor:pointer">\\uD83D\\uDD04 3 Variations</button>' +
+                    '</div>';
                 chatDiv.appendChild(div);
                 chatDiv.scrollTop = chatDiv.scrollHeight;
                 promptEl.disabled = false; sendBtn.disabled = false; promptEl.focus();

@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-  <!-- Wand/spark — AI image generation -->
-  <path d="M12 2 L13.2 7.8 L18 6 L14.2 10.2 L19 12 L14.2 13.8 L18 18 L13.2 16.2 L12 22 L10.8 16.2 L6 18 L9.8 13.8 L5 12 L9.8 10.2 L6 6 L10.8 7.8 Z"
-        fill="#8b5cf6"/>
-  <circle cx="18.5" cy="4.5" r="1.2" fill="#6366f1" opacity="0.8"/>
-  <circle cx="5.5" cy="19.5" r="0.8" fill="#6366f1" opacity="0.6"/>
-</svg>

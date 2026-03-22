@@ -96,10 +96,7 @@ export class OCLiteChatParticipant {
             }
         );
 
-        participant.iconPath = {
-            light: vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-light.svg'),
-            dark:  vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-participant.svg'),
-        };
+        participant.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-chat.png');
         return participant;
     }
 
@@ -146,6 +143,8 @@ export class OCLiteChatParticipant {
             }
 
             console.log(`[OCLite] Image generated and uploaded to cloud: ${sasUrl}`);
+            console.log(`[OCLite] ⚠️ EXTENSION VERSION: 0.1.66 - NEW CODE`);
+            console.log(`[OCLite] Storage account from URL: ${new URL(sasUrl).hostname.split('.')[0]}`);
 
             // Download to temp for local preview
             stream.progress('📥 Preparing preview...');
@@ -260,6 +259,16 @@ export class OCLiteChatParticipant {
         stream.markdown(
             `### 🎨 Generated Asset\n\n✅ **Image ready!**\n\n**Prompt:** _${prompt}_\n\n**Model:** ${model}`
         );
+
+        // Display the generated image
+        if (uploadResult.success && uploadResult.shareUrl) {
+            try {
+                const imageUri = vscode.Uri.parse(uploadResult.shareUrl);
+                stream.markdown(`\n![Generated Image](${imageUri.toString()})\n`);
+            } catch (error) {
+                console.warn('[OCLite] Failed to create image URI:', error);
+            }
+        }
 
         // Core action buttons
         stream.button({ command: 'oclite.saveImage', title: '💾 Save', arguments: [localPath, prompt] });

@@ -4,6 +4,12 @@ dist
 .vscode-test
 *.vsix
 
+# Large files and packages
+*.vsix
+*.zip
+*.tar.gz
+*.tgz
+
 # Environment files with secrets
 .env
 .env.*

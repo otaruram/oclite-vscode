@@ -1,8 +1,8 @@
-# OCLite - AI Image Generator & Gallery for VS Code
+# <img src="assets/icon.png" width="48" align="center" /> OCLite - AI Image Generator & Gallery for VS Code
 
-![OCLite Logo](assets/icon.png)
 
-**AI-powered image generation with instant gallery, cloud storage, and secure sharing.** Generate professional game assets, UI mockups, character designs, and creative art directly in Visual Studio Code using SDXL Lightning, Flux, and GPT-4o mini.
+
+**🎨 Your cute AI art buddy!** AI-powered image generation with instant gallery, cloud storage, and secure sharing. Generate professional game assets, UI mockups, character designs, and creative art directly in Visual Studio Code using SDXL Lightning, Flux, and GPT-4o mini.
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/oclitesite.oclite-vscode?label=Marketplace&logo=visual-studio-code&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/oclitesite.oclite-vscode?label=Downloads&color=success)](https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode)
@@ -517,3 +517,5 @@ OCLite is your all-in-one solution for:
 This project may contain trademarks or logos for projects, products, or services. Use of Microsoft trademarks must follow [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general). Use of third-party trademarks is subject to those third parties' policies.
 
 Marketplace: <https://marketplace.visualstudio.com/items?itemName=oclitesite.oclite-vscode>
+
+
