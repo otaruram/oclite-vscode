@@ -23,6 +23,28 @@ import { getSecureImageUrl } from '../services/secureUrlService';
 
 import { setVsCodeBackground, removeVsCodeBackground, applyThemeFromImage, removeOcliteTheme } from '../services/backgroundInjector';
 
+// Helper function to extract fileId from ImageKit URL
+function extractFileIdFromUrl(url: string): string | null {
+    try {
+        // ImageKit URL format: https://ik.imagekit.io/dvgef33rf/path/to/file_fileId.ext
+        // Or the fileId might be in the path
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/');
+        const lastPart = pathParts[pathParts.length - 1];
+        
+        // Try to extract fileId from filename (usually after underscore)
+        const match = lastPart.match(/_([a-zA-Z0-9]+)\./);
+        if (match && match[1]) {
+            return match[1];
+        }
+        
+        // If not found, return null (will need to be stored separately)
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Register every non-chat command and push into context.subscriptions.
  */
@@ -237,13 +259,52 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                                 
                                 let success = false;
                                 
-                                // Try to delete from blob storage
-                                if (isBlobStorageAvailable()) {
-                                    success = await deleteGalleryImage(msg.blobName);
+                                // Get image data from cache to find ImageKit fileId
+                                const cachedItems = context.globalState.get<any[]>('oclite.galleryItems', []);
+                                const imageItem = cachedItems.find(item => item.name === msg.blobName);
+                                
+                                // Delete from ImageKit if fileId exists
+                                if (imageItem && imageItem.imagekitUrl) {
+                                    try {
+                                        console.log(`[OCLite Gallery] Deleting from ImageKit...`);
+                                        const { getImagekitFunctionUrl } = require('../utilities/secrets');
+                                        const imagekitUrl = getImagekitFunctionUrl();
+                                        
+                                        // Extract fileId from ImageKit URL or use stored fileId
+                                        const fileId = imageItem.fileId || extractFileIdFromUrl(imageItem.imagekitUrl);
+                                        
+                                        if (fileId) {
+                                            const axios = require('axios');
+                                            const deleteResponse = await axios.post(
+                                                imagekitUrl,
+                                                {
+                                                    action: 'delete',
+                                                    fileId: fileId
+                                                },
+                                                {
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    timeout: 30000
+                                                }
+                                            );
+                                            
+                                            if (deleteResponse.data.status === 'success') {
+                                                console.log(`[OCLite Gallery] ✅ Deleted from ImageKit`);
+                                                success = true;
+                                            }
+                                        }
+                                    } catch (imagekitError: any) {
+                                        console.error(`[OCLite Gallery] ImageKit delete failed:`, imagekitError.message);
+                                        // Continue even if ImageKit delete fails
+                                    }
                                 }
                                 
-                                // Also remove from local cache
-                                const cachedItems = context.globalState.get<any[]>('oclite.galleryItems', []);
+                                // Try to delete from blob storage (legacy)
+                                if (isBlobStorageAvailable()) {
+                                    const blobSuccess = await deleteGalleryImage(msg.blobName);
+                                    if (blobSuccess) success = true;
+                                }
+                                
+                                // Remove from local cache
                                 const filtered = cachedItems.filter(item => item.name !== msg.blobName);
                                 await context.globalState.update('oclite.galleryItems', filtered);
                                 
@@ -252,7 +313,7 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                                 panel.webview.postMessage({ type: 'deleteResult', success: true, idx });
                                 
                                 if (success) {
-                                    sendTelemetryEvent('gallery.delete.success', { blobName: msg.blobName });
+                                    sendTelemetryEvent('gallery.delete.success', { blobName: msg.blobName, imagekit: imageItem?.imagekitUrl ? 'true' : 'false' });
                                 }
                             } catch (err) {
                                 const errorMsg = (err && (err as any).message) ? (err as any).message : String(err);

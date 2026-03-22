@@ -1,8 +1,8 @@
 {
   "name": "oclite-vscode",
-  "displayName": "OCLite - AI Image Generator & Gallery",
+  "displayName": "Pixie - AI Image Generator & Gallery",
   "description": "AI-powered image generation with instant gallery, cloud storage, and secure sharing. Generate game assets, UI mockups, and art with SDXL, Flux, and GPT-4o mini.",
-  "version": "0.1.67",
+  "version": "0.1.68",
   "publisher": "oclitesite",
   "icon": "assets/icon.png",
   "galleryBanner": {
@@ -61,6 +61,7 @@
     "onStartupFinished",
     "onView:oclite.sidebarView",
     "onView:oclite.chatView",
+    "onView:oclite.ocbuddyView",
     "onChatParticipant:oclite"
   ],
   "main": "./dist/extension.js",
@@ -144,8 +145,8 @@
     "chatParticipants": [
       {
         "id": "oclite",
-        "name": "oclite",
-        "description": "🎨 Your cute AI art buddy! Generate images, game assets & more",
+        "name": "buddy",
+        "description": "🤖 Your friendly AI art companion! Generate images, game assets & more",
         "isSticky": true
       }
     ],
@@ -153,7 +154,7 @@
       "activitybar": [
         {
           "id": "oclite-sidebar",
-          "title": "OCLite Studio",
+          "title": "✨ Artsy Studio",
           "icon": "assets/icon-light.svg"
         }
       ]
@@ -162,16 +163,22 @@
       "explorer": [
         {
           "id": "oclite.sidebarView",
-          "name": "🎨 OCLite Generator",
+          "name": "📊 Diagram Wizard",
           "type": "webview",
           "when": "true",
-          "icon": "$(paintcan)"
+          "icon": "$(graph)"
         }
       ],
       "oclite-sidebar": [
         {
           "id": "oclite.chatView",
-          "name": "💬 OCLite Chat",
+          "name": "🤖 Buddy AI",
+          "type": "webview",
+          "when": "true"
+        },
+        {
+          "id": "oclite.ocbuddyView",
+          "name": "🤖 OCBuddy",
           "type": "webview",
           "when": "true"
         }

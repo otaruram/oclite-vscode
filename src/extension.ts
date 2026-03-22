@@ -9,6 +9,7 @@ import axios from 'axios';
 import { AIService } from './services/ai';
 import { SidebarProvider } from './panels/SidebarProvider';
 import { ChatProvider } from './panels/ChatProvider';
+import { OCBuddyProvider } from './panels/OCBuddyProvider';
 import { AgentOrchestrator } from './agents/AgentOrchestrator';
 import { initializeTelemetry, sendTelemetryEvent } from './services/telemetry';
 import { initializeBlobStorage } from './services/blobStorage';
@@ -38,6 +39,11 @@ export async function activate(context: vscode.ExtensionContext) {
     const chatProvider = new ChatProvider(context.extensionUri, context);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ChatProvider.viewType, chatProvider)
+    );
+
+    const ocbuddyProvider = new OCBuddyProvider(context.extensionUri);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(OCBuddyProvider.viewType, ocbuddyProvider)
     );
 
     // STEP 3: Register all commands (always available)

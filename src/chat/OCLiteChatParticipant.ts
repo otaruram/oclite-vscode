@@ -96,7 +96,7 @@ export class OCLiteChatParticipant {
             }
         );
 
-        participant.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-chat.png');
+        participant.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'icon-generator.png');
         return participant;
     }
 
@@ -188,18 +188,31 @@ export class OCLiteChatParticipant {
             console.log(`[OCLite] - Prompt: ${prompt.substring(0, 50)}...`);
             console.log(`[OCLite] - Model: ${model}`);
             
+            // Upload to ImageKit for permanent storage via HttpTrigger3
+            console.log(`[OCLite] Uploading to ImageKit for permanent gallery storage...`);
+            const imagekitResult = await this.uploadToImageKit(sasUrl, blobName, prompt);
+            const imagekitUrl = imagekitResult?.url || null;
+            const imagekitFileId = imagekitResult?.fileId || null;
+            
+            if (!imagekitUrl) {
+                console.warn(`[OCLite] ImageKit upload failed, using SAS URL as fallback`);
+            }
+            
             // Store in extension global state for quick gallery access
             const galleryItems = this.context.globalState.get<any[]>('oclite.galleryItems', []);
             console.log(`[OCLite] Current gallery items: ${galleryItems.length}`);
             
             const newItem = {
-                url: sasUrl,
-                shareUrl: sasUrl,
+                url: imagekitUrl || sasUrl, // Use ImageKit URL if available, fallback to SAS
+                shareUrl: imagekitUrl || sasUrl,
                 name: blobName,
                 originalPrompt: prompt,
                 model: model,
                 lastModified: new Date().toISOString(),
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                imagekitUrl: imagekitUrl, // Store ImageKit URL separately for delete
+                fileId: imagekitFileId, // Store fileId for delete
+                sasUrl: sasUrl // Keep original SAS URL as backup
             };
             
             galleryItems.unshift(newItem);
@@ -229,6 +242,55 @@ export class OCLiteChatParticipant {
                     vscode.commands.executeCommand('workbench.action.toggleDevTools');
                 }
             });
+        }
+    }
+
+    /**
+     * Upload image to ImageKit for permanent storage
+     */
+    private async uploadToImageKit(sasUrl: string, blobName: string, prompt: string): Promise<{ url: string; fileId: string } | null> {
+        try {
+            const { getImagekitFunctionUrl } = require('../../utilities/secrets');
+            const imagekitUrl = getImagekitFunctionUrl();
+            
+            console.log(`[OCLite] Uploading to ImageKit via HttpTrigger3...`);
+            
+            const axios = require('axios');
+            const response = await axios.post(
+                imagekitUrl,
+                {
+                    imageUrl: sasUrl,
+                    fileName: blobName,
+                    folder: '/oclite-gallery',
+                    tags: ['oclite', 'generated', prompt.substring(0, 30)],
+                    customMetadata: {
+                        prompt: prompt,
+                        timestamp: Date.now().toString()
+                    }
+                },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 60000
+                }
+            );
+            
+            if (response.data.status === 'success' && response.data.url) {
+                console.log(`[OCLite] ✅ ImageKit upload successful: ${response.data.url}`);
+                return {
+                    url: response.data.url,
+                    fileId: response.data.fileId
+                };
+            } else {
+                console.error(`[OCLite] ImageKit upload failed:`, response.data);
+                return null;
+            }
+            
+        } catch (error: any) {
+            console.error(`[OCLite] ImageKit upload error:`, error.message);
+            if (error.response) {
+                console.error(`[OCLite] Response:`, error.response.data);
+            }
+            return null;
         }
     }
 
