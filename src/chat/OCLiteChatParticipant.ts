@@ -250,7 +250,7 @@ export class OCLiteChatParticipant {
      */
     private async uploadToImageKit(sasUrl: string, blobName: string, prompt: string): Promise<{ url: string; fileId: string } | null> {
         try {
-            const { getImagekitFunctionUrl } = require('../../utilities/secrets');
+            const { getImagekitFunctionUrl } = require('../utilities/secrets');
             const imagekitUrl = getImagekitFunctionUrl();
             
             console.log(`[OCLite] Uploading to ImageKit via HttpTrigger3...`);
@@ -262,14 +262,14 @@ export class OCLiteChatParticipant {
                     imageUrl: sasUrl,
                     fileName: blobName,
                     folder: '/oclite-gallery',
-                    tags: ['oclite', 'generated', prompt.substring(0, 30)],
-                    customMetadata: {
-                        prompt: prompt,
-                        timestamp: Date.now().toString()
-                    }
+                    tags: ['oclite', 'generated']
                 },
                 {
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-oclite-signature': `oclite-${Date.now()}`,
+                        'x-oclite-timestamp': Date.now().toString()
+                    },
                     timeout: 60000
                 }
             );

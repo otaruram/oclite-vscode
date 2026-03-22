@@ -14,6 +14,9 @@ export interface GalleryImage {
     model: string;
     userId?: string;
     secureExpiry?: Date; // When the secure SAS token expires
+    imagekitUrl?: string; // Permanent ImageKit CDN URL
+    fileId?: string; // ImageKit file ID for deletion
+    sasUrl?: string; // Temporary SAS URL (1 hour)
 }
 
 /** Rate limit info for a user */

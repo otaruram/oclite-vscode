@@ -78,6 +78,11 @@
         "category": "OCLite"
       },
       {
+        "command": "oclite.clearGalleryCache",
+        "title": "Clear Gallery Cache",
+        "category": "OCLite"
+      },
+      {
         "command": "oclite.chatWithAI",
         "title": "Chat with AI",
         "category": "OCLite"
@@ -173,12 +178,6 @@
         {
           "id": "oclite.chatView",
           "name": "🤖 Buddy AI",
-          "type": "webview",
-          "when": "true"
-        },
-        {
-          "id": "oclite.ocbuddyView",
-          "name": "🤖 OCBuddy",
           "type": "webview",
           "when": "true"
         }

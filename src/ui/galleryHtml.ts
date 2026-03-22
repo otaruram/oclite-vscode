@@ -12,9 +12,10 @@ const PLACEHOLDER_SVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlna
 export function createGalleryHtml(images: GalleryImage[], cspSource: string): string {
     const nonce = getNonce();
 
-    // Build JS-safe URL array — no HTML encoding needed, embedded in <script>
+    // Build JS-safe URL array — prioritize ImageKit URL over SAS URL
     const urlArray = JSON.stringify(images.map(img => {
-        const url = img.url || img.shareUrl || '';
+        // Priority: imagekitUrl (permanent) > url > shareUrl (temporary SAS)
+        const url = img.imagekitUrl || img.url || img.shareUrl || '';
         return (url && url.startsWith('http')) ? url : '';
     }));
 

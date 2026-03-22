@@ -174,7 +174,7 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
             
             await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: 'Loading image gallery...', cancellable: false },
-                async () => {
+                async (progress) => {
                     // Try to get images from blob storage first
                     let images: any[] = [];
                     
@@ -474,6 +474,20 @@ export function registerAllCommands(context: vscode.ExtensionContext): void {
                     }
                 }
             );
+        }),
+
+        // Clear gallery cache
+        vscode.commands.registerCommand('oclite.clearGalleryCache', async () => {
+            const choice = await vscode.window.showWarningMessage(
+                '🗑️ Clear all gallery cache? This will remove local cached images but NOT delete from cloud.',
+                'Clear Cache', 'Cancel'
+            );
+            
+            if (choice === 'Clear Cache') {
+                await context.globalState.update('oclite.galleryItems', []);
+                vscode.window.showInformationMessage('✅ Gallery cache cleared! Generate new images to see ImageKit URLs.');
+                sendTelemetryEvent('command.clearGalleryCache.executed');
+            }
         })
     );
 
