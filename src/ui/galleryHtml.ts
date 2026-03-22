@@ -162,14 +162,28 @@ export function createGalleryHtml(images: GalleryImage[], cspSource: string): st
             var prompt = PROMPTS[idx]    || '';
 
             if (action === 'copy') {
-                if (url) {
+                // Use ImageKit URL directly if available (permanent, no expiry)
+                if (url && url.includes('ik.imagekit.io')) {
+                    navigator.clipboard && navigator.clipboard.writeText(url)
+                        .then(function() { showToast('📋 Permanent link copied!'); })
+                        .catch(function() { showToast('❌ Copy failed'); });
+                } else if (blob) {
+                    // Fallback: generate SAS URL via HttpTrigger4
                     vscode.postMessage({ type: 'generateSecureUrl', blobName: blob, action: 'copy' });
                 } else {
                     showToast('❌ No URL available');
                 }
             }
             else if (action === 'gencode') {
-                vscode.postMessage({ type: 'generateSecureUrl', blobName: blob, action: 'gencode', prompt: prompt, idx: idx });
+                // Use ImageKit URL directly if available (permanent, no expiry)
+                if (url && url.includes('ik.imagekit.io')) {
+                    generateCode(url, prompt, idx);
+                } else if (blob) {
+                    // Fallback: generate SAS URL via HttpTrigger4
+                    vscode.postMessage({ type: 'generateSecureUrl', blobName: blob, action: 'gencode', prompt: prompt, idx: idx });
+                } else {
+                    showToast('❌ No URL available');
+                }
             }
             else if (action === 'settheme') {
                 if (url) {

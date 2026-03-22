@@ -323,16 +323,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview, extensionUri: vscode.Uri) {
-        const toolkitUri = getUri(webview, this._extensionUri, [
-            "dist",
-            "toolkit.js",
-        ]);
-
         const mainUri = getUri(webview, this._extensionUri, ["media", "main.js"]);
         const styleUri = getUri(webview, this._extensionUri, ["media", "main.css"]);
         const nonce = getNonce();
 
-        // Enhanced CSP to allow images from common CDNs
         const csp = [
             `default-src 'none'`,
             `style-src ${webview.cspSource} 'unsafe-inline'`,
@@ -350,88 +344,93 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         <meta http-equiv="Content-Security-Policy" content="${csp}">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="${styleUri}" rel="stylesheet">
-        <script type="module" nonce="${nonce}" src="${toolkitUri}"></script>
-        <script type="module" nonce="${nonce}" src="${mainUri}"></script>
       </head>
       <body>
-        <div class="container">
-          <!-- Project Detection Banner -->
-          <div id="project-banner" class="project-banner hidden">
-            <span id="project-icon"></span>
-            <span id="project-message"></span>
-          </div>
-
-          <!-- Input Section -->
-          <section class="input-section">
-            <div class="input-group">
-              <label for="prompt-input">Describe your diagram data / flow</label>
-              <vscode-text-area 
-                id="prompt-input" 
-                placeholder="E.g., A user authentication flow, from login to dashboard..." 
-                rows="3" 
-                resize="vertical">
-              </vscode-text-area>
-            </div>
-            
-            <div class="input-group">
-              <label for="style-dropdown">Diagram Style</label>
-              <vscode-dropdown id="style-dropdown">
-                <vscode-option value="Auto (Let AI Choose)">🤖 Auto (Let AI Choose)</vscode-option>
-                <vscode-option value="Flowchart">📊 Flowchart</vscode-option>
-                <vscode-option value="Sequence Diagram">🔁 Sequence Diagram</vscode-option>
-                <vscode-option value="Class Diagram">📦 Class Diagram</vscode-option>
-                <vscode-option value="State Diagram">🚦 State Diagram</vscode-option>
-                <vscode-option value="Entity Relationship Diagram">🔗 Entity Relationship Diagram</vscode-option>
-                <vscode-option value="User Journey">🚶 User Journey</vscode-option>
-                <vscode-option value="Gantt Chart">📅 Gantt Chart</vscode-option>
-                <vscode-option value="Pie Chart">🥧 Pie Chart</vscode-option>
-              </vscode-dropdown>
-            </div>
-
-            <vscode-button id="generate-btn" appearance="primary">
-              Generate Diagram
-            </vscode-button>
-          </section>
-
-          <!-- Status Section -->
-          <section class="status-section">
-            <div class="status-bar">
-              <vscode-progress-ring id="progress-ring" class="hidden"></vscode-progress-ring>
-              <span id="status-text">Ready to generate diagram</span>
-            </div>
-            
-            <!-- Step Progress Indicator -->
-            <div id="step-indicator" class="step-indicator hidden">
-              <div class="step" data-step="1">
-                <div class="step-circle">1</div>
-                <span>Analyze</span>
-              </div>
-              <div class="step-line"></div>
-              <div class="step" data-step="2">
-                <div class="step-circle">2</div>
-                <span>Generate</span>
-              </div>
-            </div>
-          </section>
-
-          <!-- Mermaid Result Area -->
-          <section id="mermaid-result-area" class="result-area hidden">
-            <div class="code-container" style="background:#1e1e1e; padding:10px; border-radius:6px; margin-bottom:10px; max-height:200px; overflow-y:auto; font-family:monospace; font-size:12px;">
-              <pre id="mermaid-result-code" style="margin:0; white-space:pre-wrap; word-wrap:break-word;"></pre>
-            </div>
-            <div class="actions">
-              <vscode-button id="open-excalidraw-btn" appearance="primary">
-                📋 Copy & Open in Excalidraw
-              </vscode-button>
-            </div>
-          </section>
-
-          <!-- Suggestion Area -->
-          <div id="suggestion-area" class="suggestion-area hidden">
-            <vscode-badge>💡 Suggestion</vscode-badge>
-            <p id="suggestion-text"></p>
+        <!-- Branding Header -->
+        <div class="oc-header">
+          <span class="oc-header-icon">✨</span>
+          <div class="oc-header-text">
+            <h3>Diagram Wizard</h3>
+            <span>AI-powered diagram generation</span>
           </div>
         </div>
+
+        <!-- Project Detection Banner -->
+        <div id="project-banner" class="project-banner hidden">
+          <span id="project-icon"></span>
+          <span id="project-message"></span>
+        </div>
+
+        <!-- Input Section -->
+        <section class="input-section">
+          <div class="input-group">
+            <label for="prompt-input">Describe your diagram</label>
+            <textarea
+              id="prompt-input"
+              placeholder="E.g., A user authentication flow, from login to dashboard..."
+              rows="3"></textarea>
+          </div>
+
+          <div class="input-group">
+            <label for="style-dropdown">Diagram Style</label>
+            <select id="style-dropdown">
+              <option value="Auto (Let AI Choose)">🤖 Auto (Let AI Choose)</option>
+              <option value="Flowchart">📊 Flowchart</option>
+              <option value="Sequence Diagram">🔁 Sequence Diagram</option>
+              <option value="Class Diagram">📦 Class Diagram</option>
+              <option value="State Diagram">🚦 State Diagram</option>
+              <option value="Entity Relationship Diagram">🔗 Entity Relationship</option>
+              <option value="User Journey">🚶 User Journey</option>
+              <option value="Gantt Chart">📅 Gantt Chart</option>
+              <option value="Pie Chart">🥧 Pie Chart</option>
+            </select>
+          </div>
+
+          <button id="generate-btn" class="btn-primary">
+            <span class="spinner"></span>
+            <span class="btn-text">⚡ Generate Diagram</span>
+          </button>
+        </section>
+
+        <!-- Status Section -->
+        <section class="status-section">
+          <div class="status-bar">
+            <span class="status-dot"></span>
+            <span id="status-text">Ready to generate diagram</span>
+          </div>
+
+          <div id="step-indicator" class="step-indicator hidden">
+            <div class="step" data-step="1">
+              <div class="step-circle">1</div>
+              <span>Analyze</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="2">
+              <div class="step-circle">2</div>
+              <span>Generate</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Mermaid Result Area -->
+        <section id="mermaid-result-area" class="result-area hidden">
+          <div class="code-container">
+            <pre id="mermaid-result-code"></pre>
+          </div>
+          <div class="result-actions">
+            <button id="open-excalidraw-btn" class="btn-secondary">
+              📋 Copy & Open in Excalidraw
+            </button>
+          </div>
+        </section>
+
+        <!-- Suggestion Area -->
+        <div id="suggestion-area" class="suggestion-area hidden">
+          <span class="badge">💡 Suggestion</span>
+          <p id="suggestion-text"></p>
+        </div>
+
+        <script nonce="${nonce}" src="${mainUri}"></script>
       </body>
       </html>
     `;

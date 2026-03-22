@@ -1,0 +1,368 @@
+/* ── OCLite Diagram Wizard — Sidebar Stylesheet ─────────────────────── */
+
+:root {
+  --oc-primary: #7c3aed;
+  --oc-primary-hover: #6d28d9;
+  --oc-primary-glow: rgba(124, 58, 237, 0.25);
+  --oc-success: #10b981;
+  --oc-error: #ef4444;
+  --oc-warning: #f59e0b;
+  --oc-surface: var(--vscode-sideBar-background, #1e1e2e);
+  --oc-surface-hover: var(--vscode-list-hoverBackground, #2a2a3e);
+  --oc-border: var(--vscode-panel-border, #333348);
+  --oc-text: var(--vscode-foreground, #cdd6f4);
+  --oc-text-muted: var(--vscode-descriptionForeground, #a6adc8);
+  --oc-input-bg: var(--vscode-input-background, #181825);
+  --oc-input-border: var(--vscode-input-border, #45475a);
+  --oc-input-fg: var(--vscode-input-foreground, #cdd6f4);
+  --oc-radius: 8px;
+  --oc-radius-sm: 6px;
+  --oc-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--vscode-font-family, 'Segoe UI', system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--oc-text);
+  background: transparent;
+  padding: 12px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── Branding Header ──────────────────────────────────────────────── */
+.oc-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(99,102,241,0.08) 100%);
+  border: 1px solid rgba(124,58,237,0.2);
+  border-radius: var(--oc-radius);
+}
+.oc-header-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 0 6px var(--oc-primary-glow));
+}
+.oc-header-text h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oc-text);
+  margin: 0;
+}
+.oc-header-text span {
+  font-size: 10.5px;
+  color: var(--oc-text-muted);
+}
+
+/* ── Project Detection Banner ─────────────────────────────────────── */
+.project-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: var(--oc-radius-sm);
+  font-size: 11.5px;
+  color: var(--oc-success);
+  animation: fadeSlideIn 0.3s ease;
+}
+.project-banner.hidden { display: none; }
+
+/* ── Input Section ────────────────────────────────────────────────── */
+.input-section { margin-bottom: 16px; }
+
+.input-group {
+  margin-bottom: 12px;
+}
+.input-group label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--oc-text-muted);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  background: var(--oc-input-bg);
+  color: var(--oc-input-fg);
+  border: 1px solid var(--oc-input-border);
+  border-radius: var(--oc-radius-sm);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--oc-transition), box-shadow var(--oc-transition);
+}
+textarea:focus {
+  border-color: var(--oc-primary);
+  box-shadow: 0 0 0 2px var(--oc-primary-glow);
+}
+textarea::placeholder {
+  color: var(--oc-text-muted);
+  opacity: 0.6;
+}
+
+select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--oc-input-bg);
+  color: var(--oc-input-fg);
+  border: 1px solid var(--oc-input-border);
+  border-radius: var(--oc-radius-sm);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a6adc8' d='M3 4.5L6 8l3-3.5H3z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  transition: border-color var(--oc-transition), box-shadow var(--oc-transition);
+}
+select:focus {
+  border-color: var(--oc-primary);
+  box-shadow: 0 0 0 2px var(--oc-primary-glow);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--oc-primary), #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: var(--oc-radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--oc-transition);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--oc-primary-hover), #4f46e5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--oc-primary-glow);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.btn-primary .spinner {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.btn-primary.loading .spinner { display: inline-block; }
+.btn-primary.loading .btn-text { opacity: 0.7; }
+
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--oc-surface-hover);
+  color: var(--oc-text);
+  border: 1px solid var(--oc-border);
+  border-radius: var(--oc-radius-sm);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--oc-transition);
+}
+.btn-secondary:hover {
+  background: var(--oc-input-bg);
+  border-color: var(--oc-primary);
+}
+
+/* ── Status Section ───────────────────────────────────────────────── */
+.status-section {
+  margin-bottom: 16px;
+}
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--oc-input-bg);
+  border: 1px solid var(--oc-border);
+  border-radius: var(--oc-radius-sm);
+  font-size: 11.5px;
+  color: var(--oc-text-muted);
+  min-height: 36px;
+}
+.status-bar .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--oc-text-muted);
+  flex-shrink: 0;
+}
+.status-bar.active .status-dot {
+  background: var(--oc-primary);
+  animation: pulse 1.2s ease infinite;
+}
+.status-bar.success .status-dot { background: var(--oc-success); }
+.status-bar.error .status-dot { background: var(--oc-error); }
+
+/* ── Step Progress Indicator ──────────────────────────────────────── */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-top: 10px;
+  padding: 6px 0;
+}
+.step-indicator.hidden { display: none; }
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 55px;
+}
+.step-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--oc-input-bg);
+  border: 2px solid var(--oc-border);
+  color: var(--oc-text-muted);
+  transition: all 0.3s ease;
+}
+.step.active .step-circle {
+  border-color: var(--oc-primary);
+  background: var(--oc-primary);
+  color: #fff;
+  box-shadow: 0 0 10px var(--oc-primary-glow);
+}
+.step.done .step-circle {
+  border-color: var(--oc-success);
+  background: var(--oc-success);
+  color: #fff;
+}
+.step span {
+  font-size: 10px;
+  color: var(--oc-text-muted);
+  font-weight: 500;
+}
+.step.active span { color: var(--oc-primary); }
+.step.done span { color: var(--oc-success); }
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--oc-border);
+  margin: 0 4px;
+  margin-bottom: 18px;
+  transition: background 0.3s;
+}
+.step-line.done { background: var(--oc-success); }
+
+/* ── Result Area (Mermaid) ────────────────────────────────────────── */
+.result-area {
+  animation: fadeSlideIn 0.3s ease;
+}
+.result-area.hidden { display: none; }
+
+.code-container {
+  background: var(--oc-input-bg);
+  border: 1px solid var(--oc-border);
+  border-radius: var(--oc-radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.code-container pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: var(--vscode-editor-font-family, 'Cascadia Code', 'Fira Code', monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--oc-text);
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Suggestion Area ──────────────────────────────────────────────── */
+.suggestion-area {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.15);
+  border-radius: var(--oc-radius-sm);
+  font-size: 11.5px;
+}
+.suggestion-area.hidden { display: none; }
+.suggestion-area .badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--oc-warning);
+  margin-bottom: 4px;
+}
+
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--oc-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--oc-text-muted); }

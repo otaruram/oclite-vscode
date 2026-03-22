@@ -2,7 +2,7 @@
   "name": "oclite-vscode",
   "displayName": "Pixie - AI Image Generator & Gallery",
   "description": "AI-powered image generation with instant gallery, cloud storage, and secure sharing. Generate game assets, UI mockups, and art with SDXL, Flux, and GPT-4o mini.",
-  "version": "0.1.68",
+  "version": "0.1.70",
   "publisher": "oclitesite",
   "icon": "assets/icon.png",
   "galleryBanner": {
@@ -150,8 +150,8 @@
     "chatParticipants": [
       {
         "id": "oclite",
-        "name": "buddy",
-        "description": "🤖 Your friendly AI art companion! Generate images, game assets & more",
+        "name": "oclite",
+        "description": " Your friendly AI art companion! Generate images, game assets & more",
         "isSticky": true
       }
     ],
@@ -177,7 +177,7 @@
       "oclite-sidebar": [
         {
           "id": "oclite.chatView",
-          "name": "🤖 Buddy AI",
+          "name": "🤖",
           "type": "webview",
           "when": "true"
         }

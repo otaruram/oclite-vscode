@@ -51,13 +51,17 @@ export async function uploadToImageKit(
             const response = await axios.post(
                 getImagekitFunctionUrl(),
                 {
-                    operation: 'upload',
+                    action: 'upload',
                     imageData: imageData,
-                    fileName: fileName
+                    fileName: fileName,
+                    folder: folder,
+                    tags: tags
                 },
                 {
                     headers: {
                         'Content-Type': 'application/json',
+                        'x-oclite-signature': `oclite-${Date.now()}`,
+                        'x-oclite-timestamp': Date.now().toString()
                     },
                     timeout: 60000, // 60 seconds
                 }
@@ -118,12 +122,14 @@ export async function deleteFromImageKit(fileId: string): Promise<boolean> {
         const response = await axios.post(
             getImagekitFunctionUrl(),
             {
-                operation: 'delete',
+                action: 'delete',
                 fileId: fileId
             },
             {
                 headers: {
                     'Content-Type': 'application/json',
+                    'x-oclite-signature': `oclite-${Date.now()}`,
+                    'x-oclite-timestamp': Date.now().toString()
                 },
                 timeout: 30000,
             }
@@ -166,13 +172,15 @@ export async function getImageKitUrl(
         const response = await axios.post(
             getImagekitFunctionUrl(),
             {
-                operation: 'getUrl',
+                action: 'getUrl',
                 fileName: fileName,
                 transformations: transformations
             },
             {
                 headers: {
                     'Content-Type': 'application/json',
+                    'x-oclite-signature': `oclite-${Date.now()}`,
+                    'x-oclite-timestamp': Date.now().toString()
                 },
                 timeout: 10000,
             }
